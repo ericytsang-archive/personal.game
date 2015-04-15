@@ -1,5 +1,6 @@
 package net;
 
+import java.io.DataInputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
@@ -8,16 +9,18 @@ import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
+
+import com.google.common.collect.BiMap;
+import com.google.common.collect.HashBiMap;
 
 import net.SelectThread.Message.Type;
 
 class SelectThread extends Thread
 {
-    private Map<SelectionKey,Object> sockets;
+    private BiMap<SelectionKey,Object> sockets;
+    private BiMap<Object,SelectionKey> keys;
     private  Selector selector;
     /**
      * blocking queue of messages sent from the {SelectServer} to the
@@ -28,7 +31,8 @@ class SelectThread extends Thread
     public SelectThread()
     {
         inMsgq = new LinkedBlockingQueue<>();
-        sockets = new LinkedHashMap<>();
+        sockets = HashBiMap.create(1024);
+        keys = sockets.inverse();
     }
     public synchronized void run()
     {
@@ -54,9 +58,6 @@ class SelectThread extends Thread
             {
                 numSelected = selector.select();
             }
-
-            // bail out, I don't know what other type of exceptions there
-            // are
             catch(Exception e)
             {
                 throw new RuntimeException(e);
@@ -78,6 +79,7 @@ class SelectThread extends Thread
                     try
                     {
                         sock.connect(addr);
+                        outMsgq.add(new Message(Type.ON_CONNECT,sock,null));
                     }
                     catch(IOException e)
                     {
@@ -92,7 +94,6 @@ class SelectThread extends Thread
                         SelectionKey key = channel.register(
                             selector,
                             SelectionKey.OP_ACCEPT|
-                            SelectionKey.OP_CONNECT|
                             SelectionKey.OP_READ);
                         sockets.put(key,sock);
                     }
@@ -105,7 +106,17 @@ class SelectThread extends Thread
                 case RM_SOCKET:
                 {
                     Socket sock = (Socket)msg.obj1;
-                    sock.close();
+                    SelectionKey key = keys.get(sock);
+
+                    try
+                    {
+                        sock.close();
+                        key.cancel();
+                    }
+                    catch(IOException e)
+                    {
+                        throw new RuntimeException(e);
+                    }
                     break;
                 }
                 /**
@@ -136,7 +147,6 @@ class SelectThread extends Thread
                         SelectionKey key = channel.register(
                             selector,
                             SelectionKey.OP_ACCEPT|
-                            SelectionKey.OP_CONNECT|
                             SelectionKey.OP_READ);
                         sockets.put(key,sock);
                     }
@@ -147,6 +157,18 @@ class SelectThread extends Thread
                     break;
                 }
                 case RM_SERVER_SOCKET:
+                    ServerSocket sock = (ServerSocket)msg.obj1;
+                    SelectionKey key = keys.get(sock);
+
+                    try
+                    {
+                        sock.close();
+                        key.cancel();
+                    }
+                    catch(IOException e)
+                    {
+                        throw new RuntimeException(e);
+                    }
                     break;
                 /**
                  * cancel the select thread, so that it stops.
@@ -170,27 +192,15 @@ class SelectThread extends Thread
 
                     if(key.isValid())
                     {
-                        key.cancel();
-                        try
-                        {
-                            key.channel().close();
-                        }
-                        catch (IOException e)
-                        {
-                            throw new RuntimeException(e);
-                        }
+                        handleOnCloseable(key);
                     }
                     else if(key.isAcceptable())
                     {
-                        ServerSocket svrSock = (ServerSocket)sockets.get(key);
-                        Socket sock = svrSock.accept();
-                        outMsgq.add(new Message(Type.ON_ACCEPT,sock,null));
-                    }
-                    else if(key.isConnectable())
-                    {
+                        handleOnAcceptable(key);
                     }
                     else if(key.isReadable())
                     {
+                        handleOnReadable(key);
                     }
 
                     // remove the key from the collection because they're
@@ -234,6 +244,55 @@ class SelectThread extends Thread
     {
         inMsgq.add(new Message(Type.CANCEL,null,null));
         selector.wakeup();
+    }
+
+    ///////////////////////
+    // private interface //
+    ///////////////////////
+
+    private void handleOnAcceptable(SelectionKey key)
+    {
+        ServerSocket sock = (ServerSocket) sockets.get(key);
+        try
+        {
+            sock.accept();
+            outMsgq.add(new Message(Type.ON_ACCEPT,sock,null));
+        }
+        catch(Exception e)
+        {
+            outMsgq.add(new Message(Type.ON_ACCEPT_FAIL,sock,e));
+        }
+    }
+
+    private void handleOnCloseable(SelectionKey key)
+    {
+        key.cancel();
+        try
+        {
+            key.channel().close();
+            outMsgq.add(new Message(Type.ON_CLOSE,sockets.get(key),null));
+        }
+        catch (IOException e)
+        {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void handleOnReadable(SelectionKey key)
+    {
+        Socket sock = (Socket) sockets.get(key);
+        try
+        {
+            DataInputStream is = new DataInputStream(sock.getInputStream());
+            byte[] packetData = new byte[is.readInt()];
+            is.read(packetData);
+            Packet packet = new Packet().fromBytes(packetData);
+            outMsgq.add(new Message(Type.ON_MESSAGE,sock,packet));
+        }
+        catch(Exception e)
+        {
+            throw new RuntimeException(e);
+        }
     }
 
     /////////////
