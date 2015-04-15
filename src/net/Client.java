@@ -18,6 +18,14 @@ public interface Client
     public abstract Socket connect(String remoteAddr, int remotePort);
 
     /**
+     * disconnects the specified socket.
+     *
+     * @param socket socket to disconnect, and close.
+     */
+    public abstract void disconnect(Socket socket);
+
+
+    /**
      * sends a message to the client identified by the connection object.
      *
      * @param sock connection to send a message to
