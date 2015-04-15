@@ -28,19 +28,19 @@ public interface Client
     /**
      * callback invoked when a new connection is established with the server.
      *
-     * @param conn socket that is created to communicate with the new
+     * @param sock socket that is created to communicate with the new
      *   connection.
      */
-    public abstract void onConnect(Socket conn);
+    public abstract void onConnect(Socket sock);
 
     /**
      * callback invoked when a socket attempting to connect fails to connect.
      *
-     * @param conn   socket that is created to communicate with the new
+     * @param sock   socket that is created to communicate with the new
      *   connection.
      * @param e   exception that occurred on the socket.
      */
-    public abstract void onConnectFail(Socket conn, Exception e);
+    public abstract void onConnectFail(Socket sock, Exception e);
 
     /**
      * callback invoked when a message from a connection is received.
