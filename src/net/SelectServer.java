@@ -2,19 +2,8 @@ package net;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.nio.channels.SelectableChannel;
-import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Queue;
-import java.util.Set;
-import java.util.concurrent.LinkedBlockingQueue;
 
 public class SelectServer implements Server
 {
@@ -73,12 +62,17 @@ public class SelectServer implements Server
     }
 
     @Override
-    public void onAccept(Socket sock)
+    public void onAcceptFail(ServerSocket sock, Exception e)
     {
     }
 
     @Override
     public void onListenFail(ServerSocket sock, Exception e)
+    {
+    }
+
+    @Override
+    public void onAccept(Socket sock)
     {
     }
 

@@ -40,6 +40,14 @@ public interface Server
     public abstract void onAccept(Socket sock);
 
     /**
+     * callback invoked when the call to accept a new connection fails.
+     *
+     * @param sock socket that got the exception.
+     * @param e exception that occurred on the socket.
+     */
+    public abstract void onAcceptFail(ServerSocket sock, Exception e);
+
+    /**
      * invoked when a listening socket somehow gets an exception.
      *
      * @param sock socket that got the exception.

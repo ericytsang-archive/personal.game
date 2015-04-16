@@ -20,20 +20,35 @@ import net.SelectThread.Message.Type;
 class SelectThread extends Thread
 {
     private BiMap<SelectionKey,Object> sockets;
+
     private BiMap<Object,SelectionKey> keys;
+
     private  Selector selector;
+
     /**
      * blocking queue of messages sent from the {SelectServer} to the
      *   {SelectThread}.
      */
     private Queue<Message> inMsgq;
+
     private Queue<Message> outMsgq;
+
+    /////////////////
+    // constructor //
+    /////////////////
+
     public SelectThread()
     {
         inMsgq = new LinkedBlockingQueue<>();
+        outMsgq = new LinkedBlockingQueue<>();
         sockets = HashBiMap.create(1024);
         keys = sockets.inverse();
     }
+
+    /////////////
+    // methods //
+    /////////////
+
     public synchronized void run()
     {
         // open the selector
@@ -71,108 +86,17 @@ class SelectThread extends Thread
                 switch(msg.type)
                 {
                 case ADD_SOCKET:
-                {
-                    Socket sock = (Socket)msg.obj1;
-                    InetSocketAddress addr = (InetSocketAddress)msg.obj2;
-
-                    // bind the {ServerSocket} to a port and start listening
-                    try
-                    {
-                        sock.connect(addr);
-                        outMsgq.add(new Message(Type.ON_CONNECT,sock,null));
-                    }
-                    catch(IOException e)
-                    {
-                        outMsgq.add(new Message(Type.ON_CONNECT_FAIL,sock,e));
-                    }
-
-                    // add the {ServerSocket}'s channel to the selector
-                    SelectableChannel channel = sock.getChannel();
-                    try
-                    {
-                        channel.configureBlocking(false);
-                        SelectionKey key = channel.register(
-                            selector,
-                            SelectionKey.OP_ACCEPT|
-                            SelectionKey.OP_READ);
-                        sockets.put(key,sock);
-                    }
-                    catch(IOException e)
-                    {
-                        throw new RuntimeException(e);
-                    }
+                    handleAddSocket(msg);
                     break;
-                }
                 case RM_SOCKET:
-                {
-                    Socket sock = (Socket)msg.obj1;
-                    SelectionKey key = keys.get(sock);
-
-                    try
-                    {
-                        sock.close();
-                        key.cancel();
-                    }
-                    catch(IOException e)
-                    {
-                        throw new RuntimeException(e);
-                    }
+                    handleRemoveSocket(msg);
                     break;
-                }
-                /**
-                 * open a new server socket to listen to for new
-                 *   connections. and adds the {ServerSocket}'s channel to
-                 *   to our map of sockets for select to select.
-                 */
                 case ADD_SERVER_SOCKET:
-                {
-                    ServerSocket sock = (ServerSocket)msg.obj1;
-                    Integer port = (Integer)msg.obj2;
-
-                    // bind the {ServerSocket} to a port and start listening
-                    try
-                    {
-                        sock.bind(new InetSocketAddress(port));
-                    }
-                    catch(IOException e)
-                    {
-                        outMsgq.add(new Message(Type.ON_LISTEN_FAIL,sock,e));
-                    }
-
-                    // add the {ServerSocket}'s channel to the selector
-                    SelectableChannel channel = sock.getChannel();
-                    try
-                    {
-                        channel.configureBlocking(false);
-                        SelectionKey key = channel.register(
-                            selector,
-                            SelectionKey.OP_ACCEPT|
-                            SelectionKey.OP_READ);
-                        sockets.put(key,sock);
-                    }
-                    catch(IOException e)
-                    {
-                        throw new RuntimeException(e);
-                    }
+                    handleAddServerSocket(msg);
                     break;
-                }
                 case RM_SERVER_SOCKET:
-                    ServerSocket sock = (ServerSocket)msg.obj1;
-                    SelectionKey key = keys.get(sock);
-
-                    try
-                    {
-                        sock.close();
-                        key.cancel();
-                    }
-                    catch(IOException e)
-                    {
-                        throw new RuntimeException(e);
-                    }
+                    handleRemoveServerSocket(msg);
                     break;
-                /**
-                 * cancel the select thread, so that it stops.
-                 */
                 case CANCEL:
                     keepLooping = false;
                     break;
@@ -191,17 +115,11 @@ class SelectThread extends Thread
                     SelectionKey key = it.next();
 
                     if(key.isValid())
-                    {
                         handleOnCloseable(key);
-                    }
                     else if(key.isAcceptable())
-                    {
                         handleOnAcceptable(key);
-                    }
                     else if(key.isReadable())
-                    {
                         handleOnReadable(key);
-                    }
 
                     // remove the key from the collection because they're
                     // not removed by the selector automatically
@@ -220,35 +138,180 @@ class SelectThread extends Thread
             throw new RuntimeException(e);
         }
     }
+
+    public void handleMessages(SelectListsner listener)
+    {
+        while(outMsgq.size() > 0)
+        {
+            Message msg = outMsgq.remove();
+
+            switch(msg.type)
+            {
+            case ON_ACCEPT:
+                listener.onAccept((Socket)msg.obj1);
+                break;
+            case ON_CONNECT:
+                listener.onListenFail((ServerSocket)msg.obj1,(Exception)msg.obj2);
+                break;
+            case ON_ACCEPT_FAIL:
+                listener.onConnect((Socket)msg.obj1);
+                break;
+            case ON_LISTEN_FAIL:
+                listener.onAcceptFail((ServerSocket)msg.obj1,(Exception)msg.obj2);
+                break;
+            case ON_CONNECT_FAIL:
+                listener.onConnectFail((Socket)msg.obj1,(Exception)msg.obj2);
+                break;
+            case ON_MESSAGE:
+                listener.onMessage((Socket)msg.obj1,(Packet)msg.obj2);
+                break;
+            case ON_CLOSE:
+                listener.onClose((Socket)msg.obj1,(boolean)msg.obj2);
+                break;
+            default:
+                throw new RuntimeException("default case hit");
+            }
+        }
+    }
+
+    ////////////////////////////////////////////////////
+    // methods below enqueue messages into the inMsgq //
+    ////////////////////////////////////////////////////
+
     public void addSocket(Socket sock, InetSocketAddress address)
     {
         inMsgq.add(new Message(Type.ADD_SOCKET,sock,address));
         selector.wakeup();
     }
+
     public void removeSocket(Socket sock)
     {
         inMsgq.add(new Message(Type.RM_SOCKET,sock,null));
         selector.wakeup();
     }
+
     public void addServerSocket(ServerSocket sock, int serverPort)
     {
         inMsgq.add(new Message(Type.ADD_SERVER_SOCKET,sock,serverPort));
         selector.wakeup();
     }
+
     public void removeServerSocket(ServerSocket sock)
     {
         inMsgq.add(new Message(Type.RM_SERVER_SOCKET,sock,null));
         selector.wakeup();
     }
+
     public void cancel()
     {
         inMsgq.add(new Message(Type.CANCEL,null,null));
         selector.wakeup();
     }
 
-    ///////////////////////
-    // private interface //
-    ///////////////////////
+    ///////////////////////////////////////////////////////////
+    // methods below dequeue and handle messages from inMsgq //
+    ///////////////////////////////////////////////////////////
+
+    private void handleAddSocket(Message msg)
+    {
+        Socket sock = (Socket)msg.obj1;
+        InetSocketAddress addr = (InetSocketAddress)msg.obj2;
+
+        // connect the {Socket} to a port and start listening
+        try
+        {
+            sock.connect(addr);
+            outMsgq.add(new Message(Type.ON_CONNECT,sock,null));
+        }
+        catch(IOException e)
+        {
+            outMsgq.add(new Message(Type.ON_CONNECT_FAIL,sock,e));
+        }
+
+        // add the {Socket}'s channel to the selector
+        SelectableChannel channel = sock.getChannel();
+        try
+        {
+            channel.configureBlocking(false);
+            SelectionKey key = channel.register(
+                selector,
+                SelectionKey.OP_ACCEPT|
+                SelectionKey.OP_READ);
+            sockets.put(key,sock);
+        }
+        catch(IOException e)
+        {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void handleRemoveSocket(Message msg)
+    {
+        Socket sock = (Socket)msg.obj1;
+        SelectionKey key = keys.get(sock);
+
+        try
+        {
+            sock.close();
+            key.cancel();
+        }
+        catch(IOException e)
+        {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void handleAddServerSocket(Message msg)
+    {
+        ServerSocket sock = (ServerSocket)msg.obj1;
+        Integer port = (Integer)msg.obj2;
+
+        // bind the {ServerSocket} to a port and start listening
+        try
+        {
+            sock.bind(new InetSocketAddress(port));
+        }
+        catch(IOException e)
+        {
+            outMsgq.add(new Message(Type.ON_LISTEN_FAIL,sock,e));
+        }
+
+        // add the {ServerSocket}'s channel to the selector
+        SelectableChannel channel = sock.getChannel();
+        try
+        {
+            channel.configureBlocking(false);
+            SelectionKey key = channel.register(
+                selector,
+                SelectionKey.OP_ACCEPT|
+                SelectionKey.OP_READ);
+            sockets.put(key,sock);
+        }
+        catch(IOException e)
+        {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void handleRemoveServerSocket(Message msg)
+    {
+        ServerSocket sock = (ServerSocket)msg.obj1;
+        SelectionKey key = keys.get(sock);
+
+        try
+        {
+            sock.close();
+            key.cancel();
+        }
+        catch(IOException e)
+        {
+            throw new RuntimeException(e);
+        }
+    }
+
+    //////////////////////////////////////////////////
+    // methods below handle keys signaled by select //
+    //////////////////////////////////////////////////
 
     private void handleOnAcceptable(SelectionKey key)
     {
@@ -293,6 +356,21 @@ class SelectThread extends Thread
         {
             throw new RuntimeException(e);
         }
+    }
+
+    ////////////////////
+    // SelectListener //
+    ////////////////////
+
+    public interface SelectListsner
+    {
+        public abstract void onAccept(Socket sock);
+        public abstract void onListenFail(ServerSocket sock, Exception e);
+        public abstract void onConnect(Socket conn);
+        public abstract void onAcceptFail(ServerSocket sock, Exception e);
+        public abstract void onConnectFail(Socket conn, Exception e);
+        public abstract void onMessage(Socket sock, Packet packet);
+        public abstract void onClose(Socket sock, boolean remote);
     }
 
     /////////////
