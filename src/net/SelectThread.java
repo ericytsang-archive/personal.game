@@ -26,11 +26,13 @@ class SelectThread extends Thread
 
     private Queue<Message> outMsgq;
 
+    private SelectListener listener;
+
     //////////////////
     // constructors //
     //////////////////
 
-    public SelectThread()
+    public SelectThread(SelectListener listener)
     {
         // open the selector
         try
@@ -42,8 +44,16 @@ class SelectThread extends Thread
             throw new RuntimeException(e);
         }
 
-        inMsgq = new LinkedBlockingQueue<>();
-        outMsgq = new LinkedBlockingQueue<>();
+        this.inMsgq = new LinkedBlockingQueue<>();
+        this.outMsgq = new LinkedBlockingQueue<>();
+        this.listener = listener;
+
+        setDaemon(true);
+    }
+
+    public SelectThread()
+    {
+        this(null);
     }
 
     //////////////////////
@@ -120,6 +130,12 @@ class SelectThread extends Thread
                     it.remove();
                 }
             }
+
+            // if we have a listener, invoke all its callbacks immediately
+            if(listener != null)
+            {
+                handleMessages(listener);
+            }
         }
 
         // close the selector
@@ -133,7 +149,17 @@ class SelectThread extends Thread
         }
     }
 
-    public void handleMessages(SelectListsner listener)
+    public void setListener(SelectListener listener)
+    {
+        this.listener = listener;
+    }
+
+    public void unsetListener()
+    {
+        setListener(null);
+    }
+
+    public void handleMessages(SelectListener listener)
     {
         while(outMsgq.size() > 0)
         {
@@ -470,7 +496,7 @@ class SelectThread extends Thread
     // SelectListener //
     ////////////////////
 
-    public interface SelectListsner
+    public interface SelectListener
     {
         public abstract void onAccept(SocketChannel chnl);
         public abstract void onConnect(SocketChannel chnl);
@@ -525,10 +551,8 @@ class SelectThread extends Thread
     {
         final SelectThread st1 = new SelectThread();
         final SelectThread st2 = new SelectThread();
-        st1.start();
-        st2.start();
 
-        SelectListsner listener = new SelectListsner()
+        SelectListener listener = new SelectListener()
         {
             @Override
             public void onAccept(SocketChannel chnl)
@@ -572,13 +596,27 @@ class SelectThread extends Thread
             }
         };
 
+        st1.setListener(listener);
+        st2.setListener(listener);
+        st1.start();
+        st2.start();
+
         st2.startListening(7000);
         st1.connect("localhost",7000);
 
+        try
+        {
+            Thread.sleep(100);
+        }
+        catch(InterruptedException e1)
+        {
+            e1.printStackTrace();
+        }
+
         while(true)
         {
-        st1.handleMessages(listener);
-        st2.handleMessages(listener);
+            st1.handleMessages(listener);
+            st2.handleMessages(listener);
         }
     }
 }
