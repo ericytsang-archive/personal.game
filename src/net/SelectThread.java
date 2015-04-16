@@ -34,21 +34,23 @@ class SelectThread extends Thread
 
     public SelectThread(SelectListener listener)
     {
-        // open the selector
         try
         {
-            selector = Selector.open();
+            // initialize instance variables
+            this.selector = Selector.open();
+            this.inMsgq = new LinkedBlockingQueue<>();
+            this.outMsgq = new LinkedBlockingQueue<>();
+            setListener(listener);
+
+            // set thread to daemon mode, because the program should be able to
+            // end while SelectThreads are running.
+            setDaemon(true);
         }
         catch (IOException e)
         {
             throw new RuntimeException(e);
         }
 
-        this.inMsgq = new LinkedBlockingQueue<>();
-        this.outMsgq = new LinkedBlockingQueue<>();
-        this.listener = listener;
-
-        setDaemon(true);
     }
 
     public SelectThread()
@@ -60,6 +62,14 @@ class SelectThread extends Thread
     // public interface //
     //////////////////////
 
+    /**
+     * the main {run} method of the {SelectThread}. this is he function that
+     *   gets threaded.
+     *
+     * it selects forever, handles messages from the internal inbound message
+     *   queue, and enqueues callback tokens on the internal outbound message
+     *   queue.
+     */
     public synchronized void run()
     {
         // continuously loop, and select sockets, and deal with them. select
@@ -149,16 +159,35 @@ class SelectThread extends Thread
         }
     }
 
+    /**
+     * sets the {SelecThread}'s listener. when any network activity is detected
+     *   by the {SelectThread}, the methods of {listener} will be invoked
+     *   immediately on the {SelectThread}.
+     *
+     * @param   listener   listener to invoke the callbacks of.
+     */
     public void setListener(SelectListener listener)
     {
         this.listener = listener;
     }
 
+    /**
+     * removes the listener from the {SelectThread}, so that its callbacks are
+     *   no longer invoked.
+     */
     public void unsetListener()
     {
         setListener(null);
     }
 
+    /**
+     * dequeues all callback tokens from the {selectThread}'s internal outbound
+     *   message queue, parses them, and invokes the callback methods of
+     *   {listener} on the calling thread.
+     *
+     * @param   listener   listener used to handle the messages from the
+     *   {SelecThread}.
+     */
     public void handleMessages(SelectListener listener)
     {
         while(outMsgq.size() > 0)
@@ -204,6 +233,20 @@ class SelectThread extends Thread
 
     // methods below enqueue messages into the inMsgq
 
+    /**
+     * creates a new {SocketChannel} that is trying to connect to the remote
+     *   host at {remoteName}:{remotePort}.
+     *
+     * the new {SocketChannel} is also added to the {SelectThread} to be
+     *   monitored for any packets, or if it is closed by the remote or local
+     *   hosts.
+     *
+     * @param   remoteName   IP address in dotted decimal format, or name of the
+     *   remote host to connect to.
+     * @param   remotePort   port number of the remote host to connect to.
+     *
+     * @return   [description]
+     */
     public SocketChannel connect(String remoteName, int remotePort)
     {
         try
@@ -220,12 +263,31 @@ class SelectThread extends Thread
         }
     }
 
+    /**
+     * closes the {channel}, and removes it from the {SelectThread} so that it
+     *   will no longer receive any messages.
+     *
+     * @param   channel   channel to close.
+     */
     public void disconnect(SocketChannel channel)
     {
         inMsgq.add(new Message(Type.DISCONNECT,channel,null));
         selector.wakeup();
     }
 
+    /**
+     * opens a new {ServerSocketChannel}, that is listening on port
+     *   {serverPort}.
+     *
+     * the new {ServerSocketChannel} is also added to the
+     *   {SelectThread} to be monitored for any new connection requests.
+     *
+     * @param   serverPort   port to make the returned {ServerSocketChannel}
+     *   listen for new connections from.
+     *
+     * @return   the new {ServerSocketChannel} created to listen to
+     *   {serverPort}.
+     */
     public ServerSocketChannel startListening(int serverPort)
     {
         try
@@ -242,23 +304,46 @@ class SelectThread extends Thread
         }
     }
 
+    /**
+     * closes the listening {ServerSocketChannel}, and removes it from the
+     *   {SelectThread} so that it will no longer accept any new connection
+     *   requests.
+     *
+     * @param   channel   {ServerSocketChannel} to close.
+     */
     public void stopListening(ServerSocketChannel channel)
     {
         inMsgq.add(new Message(Type.STOP_LISTEN,channel,null));
         selector.wakeup();
     }
 
+    /**
+     * sends {packet} through {channel} asynchronously on the {SelectThread}.
+     *
+     * @param   channel   channel to send the message to.
+     * @param   packet   packet to send through the channel.
+     */
     public void sendMessage(SocketChannel channel, Packet packet)
     {
         inMsgq.add(new Message(Type.SEND_MESSAGE,channel,packet));
         selector.wakeup();
     }
 
+    /**
+     * sends {packet} through {channel} on the calling thread.
+     *
+     * @param   channel   channel to send the message to.
+     * @param   packet   packet to send through the channel.
+     */
     public void sendMessageOnThisThread(SocketChannel channel, Packet packet)
     {
         handleSendMessage(new Message(Type.SEND_MESSAGE,channel,packet));
     }
 
+    /**
+     * cancels the {SelectThread}, so that it stops running, and accumulating
+     *   messages to handle.
+     */
     public void cancel()
     {
         inMsgq.add(new Message(Type.CANCEL,null,null));
