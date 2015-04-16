@@ -5,7 +5,7 @@ import java.nio.channels.SocketChannel;
 
 import net.SelectThread.SelectListsner;
 
-public abstract class SelectServer implements Server<ServerSocketChannel,SocketChannel>, SelectThread.SelectListsner
+public abstract class SelectClient implements Client<SocketChannel>, SelectThread.SelectListsner
 {
     /**
      * the select thread of this class. isn't instantiated directly, instead,
@@ -14,19 +14,19 @@ public abstract class SelectServer implements Server<ServerSocketChannel,SocketC
     private SelectThread selectThread;
 
     //////////////////////////////////////////////
-    // public interface & Server implementation //
+    // public interface & Client implementation //
     //////////////////////////////////////////////
 
     @Override
-    public ServerSocketChannel startListening(int serverPort)
+    public SocketChannel connect(String remoteName, int remotePort)
     {
-        return getSelectThread().startListening(serverPort);
+        return getSelectThread().connect(remoteName,remotePort);
     }
 
     @Override
-    public void stopListening(ServerSocketChannel channel)
+    public void disconnect(SocketChannel channel)
     {
-        getSelectThread().stopListening(channel);
+        getSelectThread().disconnect(channel);
     }
 
     @Override
@@ -52,30 +52,33 @@ public abstract class SelectServer implements Server<ServerSocketChannel,SocketC
     // callbacks
 
     @Override
-    public abstract void onAcceptFail(ServerSocketChannel channel, Exception e);
+    public abstract void onConnect(SocketChannel conn);
 
     @Override
-    public abstract void onListenFail(ServerSocketChannel channel, Exception e);
+    public abstract void onConnectFail(SocketChannel conn, Exception e);
 
     @Override
-    public abstract void onAccept(SocketChannel channel);
+    public abstract void onMessage(SocketChannel conn, Packet packet);
 
     @Override
-    public abstract void onMessage(SocketChannel channel, Packet packet);
-
-    @Override
-    public abstract void onClose(SocketChannel channel, boolean remote);
+    public abstract void onClose(SocketChannel conn, boolean remote);
 
     // unused callbacks
 
     @Override
-    public final void onConnect(SocketChannel chnl)
+    public final void onAccept(SocketChannel chnl)
     {
         throw new UnsupportedOperationException("method is an unused callback");
     }
 
     @Override
-    public final void onConnectFail(SocketChannel chnl, Exception e)
+    public final void onAcceptFail(ServerSocketChannel chnl, Exception e)
+    {
+        throw new UnsupportedOperationException("method is an unused callback");
+    }
+
+    @Override
+    public final void onListenFail(ServerSocketChannel chnl, Exception e)
     {
         throw new UnsupportedOperationException("method is an unused callback");
     }
