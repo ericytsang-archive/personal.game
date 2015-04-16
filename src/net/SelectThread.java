@@ -33,9 +33,9 @@ class SelectThread extends Thread
 
     private Queue<Message> outMsgq;
 
-    /////////////////
-    // constructor //
-    /////////////////
+    //////////////////
+    // constructors //
+    //////////////////
 
     public SelectThread()
     {
@@ -45,9 +45,9 @@ class SelectThread extends Thread
         keys = sockets.inverse();
     }
 
-    /////////////
-    // methods //
-    /////////////
+    //////////////////////
+    // public interface //
+    //////////////////////
 
     public synchronized void run()
     {
@@ -174,9 +174,7 @@ class SelectThread extends Thread
         }
     }
 
-    ////////////////////////////////////////////////////
-    // methods below enqueue messages into the inMsgq //
-    ////////////////////////////////////////////////////
+    // methods below enqueue messages into the inMsgq
 
     public void addSocket(Socket sock, InetSocketAddress address)
     {
@@ -208,9 +206,11 @@ class SelectThread extends Thread
         selector.wakeup();
     }
 
-    ///////////////////////////////////////////////////////////
-    // methods below dequeue and handle messages from inMsgq //
-    ///////////////////////////////////////////////////////////
+    ///////////////////////
+    // private interface //
+    ///////////////////////
+
+    // methods below dequeue and handle messages from inMsgq
 
     private void handleAddSocket(Message msg)
     {
@@ -309,9 +309,7 @@ class SelectThread extends Thread
         }
     }
 
-    //////////////////////////////////////////////////
-    // methods below handle keys signaled by select //
-    //////////////////////////////////////////////////
+    // methods below handle keys signaled by select
 
     private void handleOnAcceptable(SelectionKey key)
     {
