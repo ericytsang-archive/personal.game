@@ -16,29 +16,14 @@ public class SelectServer implements Server
     @Override
     public ServerSocket startListening(int serverPort)
     {
-        // open a server socket
-        ServerSocket sock;
-        try
-        {
-            sock = new ServerSocket();
-        }
-        catch(Exception e)
-        {
-            throw new RuntimeException(e);
-        }
-
-        // add the socket to the select thread
-        getSelectThread().addServerSocket(sock,serverPort);
-
-        // return...
-        return sock;
+        return getSelectThread().startListening(serverPort);
     }
 
     @Override
     public void stopListening(ServerSocket sock)
     {
         // remove the socket from the select thread
-        getSelectThread().removeServerSocket(sock);
+        getSelectThread().stopListening(sock);
     }
 
     @Override
