@@ -8,6 +8,7 @@ import java.net.Socket;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
+import java.nio.channels.SocketChannel;
 import java.util.Iterator;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -19,11 +20,11 @@ import net.SelectThread.Message.Type;
 
 class SelectThread extends Thread
 {
+    private  Selector selector;
+
     private BiMap<SelectionKey,Object> sockets;
 
     private BiMap<Object,SelectionKey> keys;
-
-    private  Selector selector;
 
     /**
      * blocking queue of messages sent from the {SelectServer} to the
@@ -39,18 +40,6 @@ class SelectThread extends Thread
 
     public SelectThread()
     {
-        inMsgq = new LinkedBlockingQueue<>();
-        outMsgq = new LinkedBlockingQueue<>();
-        sockets = HashBiMap.create(1024);
-        keys = sockets.inverse();
-    }
-
-    /////////////
-    // methods //
-    /////////////
-
-    public synchronized void run()
-    {
         // open the selector
         try
         {
@@ -61,6 +50,18 @@ class SelectThread extends Thread
             throw new RuntimeException(e);
         }
 
+        sockets = HashBiMap.create(1024);
+        keys = sockets.inverse();
+        inMsgq = new LinkedBlockingQueue<>();
+        outMsgq = new LinkedBlockingQueue<>();
+    }
+
+    /////////////
+    // methods //
+    /////////////
+
+    public synchronized void run()
+    {
         // continuously loop, and select sockets, and deal with them. select
         // may be waken up when things are put into select's threadMsgq.
         // when this occurs, the thread must handle the messages.
@@ -85,16 +86,16 @@ class SelectThread extends Thread
 
                 switch(msg.type)
                 {
-                case ADD_SOCKET:
+                case CONNECT:
                     handleAddSocket(msg);
                     break;
-                case RM_SOCKET:
+                case DISCONNECT:
                     handleRemoveSocket(msg);
                     break;
-                case ADD_SERVER_SOCKET:
+                case START_LISTEN:
                     handleAddServerSocket(msg);
                     break;
-                case RM_SERVER_SOCKET:
+                case STOP_LISTEN:
                     handleRemoveServerSocket(msg);
                     break;
                 case CANCEL:
@@ -116,10 +117,12 @@ class SelectThread extends Thread
 
                     if(key.isValid())
                         handleOnCloseable(key);
-                    else if(key.isAcceptable())
-                        handleOnAcceptable(key);
                     else if(key.isReadable())
                         handleOnReadable(key);
+                    else if(key.isConnectable())
+                        handleOnConnectable(key);
+                    else if(key.isAcceptable())
+                        handleOnAcceptable(key);
 
                     // remove the key from the collection because they're
                     // not removed by the selector automatically
@@ -178,27 +181,39 @@ class SelectThread extends Thread
     // methods below enqueue messages into the inMsgq //
     ////////////////////////////////////////////////////
 
-    public void addSocket(Socket sock, InetSocketAddress address)
+    public Socket connect(String remoteName, int remotePort)
     {
-        inMsgq.add(new Message(Type.ADD_SOCKET,sock,address));
+        Socket sock = new Socket();
+        Object address = new InetSocketAddress(remoteName,remotePort);
+        inMsgq.add(new Message(Type.CONNECT,sock,address));
+        selector.wakeup();
+        return sock;
+    }
+
+    public void disconnect(Socket sock)
+    {
+        inMsgq.add(new Message(Type.DISCONNECT,sock,null));
         selector.wakeup();
     }
 
-    public void removeSocket(Socket sock)
+    public ServerSocket startListening(int serverPort)
     {
-        inMsgq.add(new Message(Type.RM_SOCKET,sock,null));
-        selector.wakeup();
+        try
+        {
+            ServerSocket sock = new ServerSocket();
+            inMsgq.add(new Message(Type.START_LISTEN,sock,serverPort));
+            selector.wakeup();
+            return sock;
+        }
+        catch(IOException e)
+        {
+            throw new RuntimeException(e);
+        }
     }
 
-    public void addServerSocket(ServerSocket sock, int serverPort)
+    public void stopListening(ServerSocket sock)
     {
-        inMsgq.add(new Message(Type.ADD_SERVER_SOCKET,sock,serverPort));
-        selector.wakeup();
-    }
-
-    public void removeServerSocket(ServerSocket sock)
-    {
-        inMsgq.add(new Message(Type.RM_SERVER_SOCKET,sock,null));
+        inMsgq.add(new Message(Type.STOP_LISTEN,sock,null));
         selector.wakeup();
     }
 
@@ -217,17 +232,6 @@ class SelectThread extends Thread
         Socket sock = (Socket)msg.obj1;
         InetSocketAddress addr = (InetSocketAddress)msg.obj2;
 
-        // connect the {Socket} to a port and start listening
-        try
-        {
-            sock.connect(addr);
-            outMsgq.add(new Message(Type.ON_CONNECT,sock,null));
-        }
-        catch(IOException e)
-        {
-            outMsgq.add(new Message(Type.ON_CONNECT_FAIL,sock,e));
-        }
-
         // add the {Socket}'s channel to the selector
         SelectableChannel channel = sock.getChannel();
         try
@@ -235,13 +239,23 @@ class SelectThread extends Thread
             channel.configureBlocking(false);
             SelectionKey key = channel.register(
                 selector,
-                SelectionKey.OP_ACCEPT|
+                SelectionKey.OP_CONNECT|
                 SelectionKey.OP_READ);
             sockets.put(key,sock);
         }
         catch(IOException e)
         {
             throw new RuntimeException(e);
+        }
+
+        // connect the {Socket} to the remote host
+        try
+        {
+            sock.getChannel().connect(addr);
+        }
+        catch(IOException e)
+        {
+            outMsgq.add(new Message(Type.ON_CONNECT_FAIL,sock,e));
         }
     }
 
@@ -283,8 +297,7 @@ class SelectThread extends Thread
             channel.configureBlocking(false);
             SelectionKey key = channel.register(
                 selector,
-                SelectionKey.OP_ACCEPT|
-                SelectionKey.OP_READ);
+                SelectionKey.OP_ACCEPT);
             sockets.put(key,sock);
         }
         catch(IOException e)
@@ -324,6 +337,22 @@ class SelectThread extends Thread
         catch(Exception e)
         {
             outMsgq.add(new Message(Type.ON_ACCEPT_FAIL,sock,e));
+        }
+    }
+
+    private void handleOnConnectable(SelectionKey key)
+    {
+        Socket sock = (Socket) sockets.get(key);
+        SocketChannel channel = (SocketChannel) key.channel();
+
+        try
+        {
+            channel.finishConnect();
+            outMsgq.add(new Message(Type.ON_CONNECT,sock,null));
+        }
+        catch(IOException e)
+        {
+            outMsgq.add(new Message(Type.ON_CONNECT_FAIL,sock,e));
         }
     }
 
@@ -389,10 +418,10 @@ class SelectThread extends Thread
             ON_MESSAGE,
             ON_CLOSE,
 
-            ADD_SERVER_SOCKET,
-            RM_SERVER_SOCKET,
-            ADD_SOCKET,
-            RM_SOCKET,
+            START_LISTEN,
+            STOP_LISTEN,
+            CONNECT,
+            DISCONNECT,
             CANCEL
         };
 
@@ -406,5 +435,62 @@ class SelectThread extends Thread
             this.obj1 = obj1;
             this.obj2 = obj2;
         }
+    }
+
+    //////////
+    // main //
+    //////////
+
+    public static void main(String[] args)
+    {
+        SelectThread st1 = new SelectThread();
+        SelectThread st2 = new SelectThread();
+        st1.start();
+        st2.start();
+
+        SelectListsner listener = new SelectListsner()
+        {
+            @Override
+            public void onAccept(Socket sock)
+            {
+                System.out.println("onAccept");
+            }
+            @Override
+            public void onListenFail(ServerSocket sock, Exception e)
+            {
+                System.out.println("onListenFail");
+            }
+            @Override
+            public void onConnect(Socket conn)
+            {
+                System.out.println("onConnect");
+            }
+            @Override
+            public void onAcceptFail(ServerSocket sock, Exception e)
+            {
+                System.out.println("onAcceptFail");
+            }
+            @Override
+            public void onConnectFail(Socket conn, Exception e)
+            {
+                System.out.println("onConnectFail");
+            }
+            @Override
+            public void onMessage(Socket sock, Packet packet)
+            {
+                System.out.println("onMessage");
+            }
+            @Override
+            public void onClose(Socket sock, boolean remote)
+            {
+                System.out.println("onClose");
+            }
+        };
+
+        st2.startListening(7000);
+        st1.connect("localhost",7000);
+
+        st1.handleMessages(listener);
+        st2.handleMessages(listener);
     }
 }
