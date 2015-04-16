@@ -14,24 +14,72 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 import net.SelectThread.Message.Type;
 
+/**
+ * a big Selector wrapper.
+ *
+ * provides interface to open and close {ServerSocketChannels} on user defined
+ *   ports.
+ *
+ * provides interface to connect to and disconnect from remote hosts.
+ *
+ * provides interface to send {Packets} objects to remote hosts through
+ *   established connections.
+ *
+ * provides a callback mechanism lets the user choose which thread to handle the
+ *   callbacks on:
+ *
+ * - to handle callbacks immediately in the {SelectThread}, use the
+ *   {setListsner} method; when the {SelectThread} needs to invoke a callback,
+ *   it will invoke one of the callback methods in the passed {SelectListener}
+ *   object.
+ *
+ * - to handle callbacks on a thread of your choice, invoke the {handleMessages}
+ *   method wherever you like, passing it a {SelectListener} object. the passed
+ *   {SelectListener} object's callback methods will be invoked appropriately.
+ */
 class SelectThread extends Thread
 {
+    /**
+     * selector object used to select from all the channels.
+     */
     private  Selector selector;
 
     /**
-     * blocking queue of messages sent from the {SelectServer} to the
+     * blocking queue of messages sent from external objects to the
      *   {SelectThread}.
      */
     private Queue<Message> inMsgq;
 
+    /**
+     * blocking queue of messages used to accumulate callback tokens that can be
+     *   consumed using the {handleMessages} method.
+     */
     private Queue<Message> outMsgq;
 
+    /**
+     * if not null, when callback tokens are enqueued into the {outMsgq}, they
+     *   are immediately passed to the listener to be consumed.
+     *
+     * if null, then callback tokens are accumulated into the {outMsgq}, waiting
+     *   to be consumed by a method call to {handleMessages}.
+     */
     private SelectListener listener;
 
     //////////////////
     // constructors //
     //////////////////
 
+    /**
+     * creates the {SelectListener}, and immediately sets its listener object
+     *   that will have its callbacks invoked as the {SelectThread} intercepts
+     *   network activity.
+     *
+     * @param   listener   the {SelectThread} listener object to call callbacks
+     *   of immediately. if null, then the {SelectThread} will accumulate
+     *   callback tokens into an internal message queue. invoke
+     *   {handleMessages()}, passing it a {SelectListener} to have its callbacks
+     *   invoked, and to consume these callback tokens.
+     */
     public SelectThread(SelectListener listener)
     {
         try
@@ -50,9 +98,12 @@ class SelectThread extends Thread
         {
             throw new RuntimeException(e);
         }
-
     }
 
+    /**
+     * same effect as calling the SelectThread's {SelectThread(SelectListener
+     *   listener)} constructor, passing it null.
+     */
     public SelectThread()
     {
         this(null);
@@ -62,102 +113,8 @@ class SelectThread extends Thread
     // public interface //
     //////////////////////
 
-    /**
-     * the main {run} method of the {SelectThread}. this is he function that
-     *   gets threaded.
-     *
-     * it selects forever, handles messages from the internal inbound message
-     *   queue, and enqueues callback tokens on the internal outbound message
-     *   queue.
-     */
-    public synchronized void run()
-    {
-        // continuously loop, and select sockets, and deal with them. select
-        // may be waken up when things are put into select's threadMsgq.
-        // when this occurs, the thread must handle the messages.
-        boolean keepLooping = true;
-        while(keepLooping)
-        {
-            // perform select
-            int numSelected = 0;
-            try
-            {
-                numSelected = selector.select();
-            }
-            catch(Exception e)
-            {
-                throw new RuntimeException(e);
-            }
-
-            // get messages from message queue, and handle the messages
-            while(inMsgq.size() > 0)
-            {
-                Message msg = inMsgq.remove();
-
-                switch(msg.type)
-                {
-                case CONNECT:
-                    handleConnect(msg);
-                    break;
-                case DISCONNECT:
-                    handleDisconnect(msg);
-                    break;
-                case START_LISTEN:
-                    handleStartListening(msg);
-                    break;
-                case STOP_LISTEN:
-                    handleStopListening(msg);
-                    break;
-                case SEND_MESSAGE:
-                    handleSendMessage(msg);
-                    break;
-                case CANCEL:
-                    keepLooping = false;
-                    break;
-                default:
-                    throw new RuntimeException("default case hit");
-                }
-            }
-
-            // iterate through selected sockets, and handle them
-            if(numSelected > 0)
-            {
-                Iterator<SelectionKey> it = selector.selectedKeys().iterator();
-
-                while(it.hasNext())
-                {
-                    SelectionKey key = it.next();
-
-                    if(key.isReadable())
-                        handleOnReadable(key);
-                    else if(key.isConnectable())
-                        handleOnConnectable(key);
-                    else if(key.isAcceptable())
-                        handleOnAcceptable(key);
-
-                    // remove the key from the collection because they're
-                    // not removed by the selector automatically
-                    it.remove();
-                }
-            }
-
-            // if we have a listener, invoke all its callbacks immediately
-            if(listener != null)
-            {
-                handleMessages(listener);
-            }
-        }
-
-        // close the selector
-        try
-        {
-            selector.close();
-        }
-        catch(IOException e)
-        {
-            throw new RuntimeException(e);
-        }
-    }
+    // methods below used to determine how callbacks are handled; either right
+    // away (setListener), or later, on another calling thread (handleMessages)
 
     /**
      * sets the {SelecThread}'s listener. when any network activity is detected
@@ -166,18 +123,20 @@ class SelectThread extends Thread
      *
      * @param   listener   listener to invoke the callbacks of.
      */
-    public void setListener(SelectListener listener)
+    public SelectThread setListener(SelectListener listener)
     {
         this.listener = listener;
+        return this;
     }
 
     /**
      * removes the listener from the {SelectThread}, so that its callbacks are
      *   no longer invoked.
      */
-    public void unsetListener()
+    public SelectThread unsetListener()
     {
         setListener(null);
+        return this;
     }
 
     /**
@@ -348,6 +307,107 @@ class SelectThread extends Thread
     {
         inMsgq.add(new Message(Type.CANCEL,null,null));
         selector.wakeup();
+    }
+
+    ////////////
+    // Thread //
+    ////////////
+
+    /**
+     * the main {run} method of the {SelectThread}. this is he function that
+     *   gets threaded.
+     *
+     * it selects forever, handles messages from the internal inbound message
+     *   queue, and enqueues callback tokens on the internal outbound message
+     *   queue.
+     */
+    public synchronized void run()
+    {
+        // continuously loop, and select sockets, and deal with them. select
+        // may be waken up when things are put into select's threadMsgq.
+        // when this occurs, the thread must handle the messages.
+        boolean keepLooping = true;
+        while(keepLooping)
+        {
+            // perform select
+            int numSelected = 0;
+            try
+            {
+                numSelected = selector.select();
+            }
+            catch(Exception e)
+            {
+                throw new RuntimeException(e);
+            }
+
+            // get messages from message queue, and handle the messages
+            while(inMsgq.size() > 0)
+            {
+                Message msg = inMsgq.remove();
+
+                switch(msg.type)
+                {
+                case CONNECT:
+                    handleConnect(msg);
+                    break;
+                case DISCONNECT:
+                    handleDisconnect(msg);
+                    break;
+                case START_LISTEN:
+                    handleStartListening(msg);
+                    break;
+                case STOP_LISTEN:
+                    handleStopListening(msg);
+                    break;
+                case SEND_MESSAGE:
+                    handleSendMessage(msg);
+                    break;
+                case CANCEL:
+                    keepLooping = false;
+                    break;
+                default:
+                    throw new RuntimeException("default case hit");
+                }
+            }
+
+            // iterate through selected sockets, and handle them
+            if(numSelected > 0)
+            {
+                Iterator<SelectionKey> it = selector.selectedKeys().iterator();
+
+                while(it.hasNext())
+                {
+                    SelectionKey key = it.next();
+
+                    if(key.isReadable())
+                        handleOnReadable(key);
+                    else if(key.isConnectable())
+                        handleOnConnectable(key);
+                    else if(key.isAcceptable())
+                        handleOnAcceptable(key);
+
+                    // remove the key from the collection because they're
+                    // not removed by the selector automatically
+                    it.remove();
+                }
+            }
+
+            // if we have a listener, invoke all its callbacks immediately
+            if(listener != null)
+            {
+                handleMessages(listener);
+            }
+        }
+
+        // close the selector
+        try
+        {
+            selector.close();
+        }
+        catch(IOException e)
+        {
+            throw new RuntimeException(e);
+        }
     }
 
     ///////////////////////
