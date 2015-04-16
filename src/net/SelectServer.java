@@ -3,9 +3,7 @@ package net;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 
-import net.SelectThread.SelectListsner;
-
-public abstract class SelectServer implements Server<ServerSocketChannel,SocketChannel>, SelectThread.SelectListsner
+public abstract class SelectServer implements Server<ServerSocketChannel,SocketChannel>, SelectThread.SelectListener
 {
     /**
      * the select thread of this class. isn't instantiated directly, instead,
@@ -40,7 +38,7 @@ public abstract class SelectServer implements Server<ServerSocketChannel,SocketC
         getSelectThread().sendMessageOnThisThread(channel,packet);
     }
 
-    public void handleMessages(SelectListsner listener)
+    public void handleMessages(SelectThread.SelectListener listener)
     {
         getSelectThread().handleMessages(this);
     }
