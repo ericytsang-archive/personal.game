@@ -1,11 +1,11 @@
 package net;
 
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.net.ServerSocket;
-import java.net.Socket;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
 
-public class SelectServer implements Server
+import net.SelectThread.SelectListsner;
+
+public abstract class SelectServer implements Server<ServerSocketChannel,SocketChannel>, SelectThread.SelectListsner
 {
     /**
      * the select thread of this class. isn't instantiated directly, instead,
@@ -13,77 +13,71 @@ public class SelectServer implements Server
      */
     private SelectThread selectThread;
 
+    //////////////////////
+    // public interface //
+    //////////////////////
+
     @Override
-    public ServerSocket startListening(int serverPort)
+    public ServerSocketChannel startListening(int serverPort)
     {
-        // open a server socket
-        ServerSocket sock;
-        try
-        {
-            sock = new ServerSocket();
-        }
-        catch(Exception e)
-        {
-            throw new RuntimeException(e);
-        }
-
-        // add the socket to the select thread
-        getSelectThread().addServerSocket(sock,serverPort);
-
-        // return...
-        return sock;
+        return getSelectThread().startListening(serverPort);
     }
 
     @Override
-    public void stopListening(ServerSocket sock)
+    public void stopListening(ServerSocketChannel channel)
     {
-        // remove the socket from the select thread
-        getSelectThread().removeServerSocket(sock);
+        getSelectThread().stopListening(channel);
     }
 
     @Override
-    public void sendMessage(Socket sock, Packet packet)
+    public void sendMessage(SocketChannel channel, Packet packet)
     {
-        synchronized(sock)
-        {
-            try
-            {
-                byte[] packetData = packet.toBytes();
-                DataOutputStream os = new DataOutputStream(
-                    sock.getOutputStream());
-                os.writeInt(packetData.length);
-                os.write(packetData);
-            }
-            catch(IOException e)
-            {
-                throw new RuntimeException(e);
-            }
-        }
+        getSelectThread().sendMessage(channel,packet);
+    }
+
+    public void sendMessageOnThisThread(SocketChannel channel, Packet packet)
+    {
+        getSelectThread().sendMessageOnThisThread(channel,packet);
+    }
+
+    public void handleMessages(SelectListsner listener)
+    {
+        getSelectThread().handleMessages(this);
+    }
+
+    /////////////////////////////////
+    // SelectThread.SelectListsner //
+    /////////////////////////////////
+
+    // callbacks
+
+    @Override
+    public abstract void onAcceptFail(ServerSocketChannel channel, Exception e);
+
+    @Override
+    public abstract void onListenFail(ServerSocketChannel channel, Exception e);
+
+    @Override
+    public abstract void onAccept(SocketChannel channel);
+
+    @Override
+    public abstract void onMessage(SocketChannel channel, Packet packet);
+
+    @Override
+    public abstract void onClose(SocketChannel channel, boolean remote);
+
+    // unused callbacks
+
+    @Override
+    public final void onConnect(SocketChannel chnl)
+    {
+        throw new UnsupportedOperationException("method is an unused callback");
     }
 
     @Override
-    public void onAcceptFail(ServerSocket sock, Exception e)
+    public final void onConnectFail(SocketChannel chnl, Exception e)
     {
-    }
-
-    @Override
-    public void onListenFail(ServerSocket sock, Exception e)
-    {
-    }
-
-    @Override
-    public void onAccept(Socket sock)
-    {
-    }
-
-    @Override
-    public void onMessage(Socket sock, Packet packet)
-    {
-    }
-
-    @Override
-    public void onClose(Socket sock, boolean remote)
-    {
+        throw new UnsupportedOperationException("method is an unused callback");
     }
 
     ///////////////////////

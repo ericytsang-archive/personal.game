@@ -1,8 +1,6 @@
 package net;
 
-import java.net.Socket;
-
-public interface Client
+public interface Client<ClientSock extends Object>
 {
     /**
      * initiates a new connection to the remote server at the address
@@ -13,58 +11,60 @@ public interface Client
      * @param    remoteAddr   IP address of the remote host.
      * @param    remotePort   port number of the remote host to connect to.
      *
-     * @return   returns the socket that is performing the connect call.
+     * @return   returns the {Object} used as a key that identifies this
+     *   connection.
      */
-    public abstract Socket connect(String remoteAddr, int remotePort);
+    public abstract ClientSock connect(String remoteAddr, int remotePort);
 
     /**
-     * disconnects the specified socket.
+     * disconnects the specified connection.
      *
-     * @param socket socket to disconnect, and close.
+     * @param conn connection to disconnect, and close.
      */
-    public abstract void disconnect(Socket socket);
+    public abstract void disconnect(ClientSock conn);
 
 
     /**
      * sends a message to the client identified by the connection object.
      *
-     * @param sock connection to send a message to
-     * @param packet packet to send from the socket.
+     * @param conn connection to send a message to
+     * @param packet packet to send from the connection.
      */
-    public abstract void sendMessage(Socket sock, Packet packet);
+    public abstract void sendMessage(ClientSock conn, Packet packet);
 
     /**
      * callback invoked when a new connection is established with the server.
      *
-     * @param conn socket that is created to communicate with the new
+     * @param conn connection that is created to communicate with the new
      *   connection.
      */
-    public abstract void onConnect(Socket conn);
+    public abstract void onConnect(ClientSock conn);
 
     /**
-     * callback invoked when a socket attempting to connect fails to connect.
+     * callback invoked when a connection attempting to connect fails to
+     *   connect.
      *
-     * @param conn   socket that is created to communicate with the new
+     * @param conn   connection that is created to communicate with the new
      *   connection.
-     * @param e   exception that occurred on the socket.
+     * @param e   exception that occurred on the connection.
      */
-    public abstract void onConnectFail(Socket conn, Exception e);
+    public abstract void onConnectFail(ClientSock conn, Exception e);
 
     /**
      * callback invoked when a message from a connection is received.
      *
-     * @param sock socket that the message was received from.
-     * @param packet packet received from the socket.
+     * @param conn connection that the message was received from.
+     * @param packet packet received from the connection.
      */
-    public abstract void onMessage(Socket sock, Packet packet);
+    public abstract void onMessage(ClientSock conn, Packet packet);
 
     /**
-     * callback invoked when the socket is closed by either the server, or the
-     *   client.
+     * callback invoked when the connection is closed by either the server, or
+     *   the client.
      *
-     * @param sock socket that was closed.
-     * @param remote true if the socket was closed by the remote host; false
+     * @param conn connection that was closed.
+     * @param remote true if the connection was closed by the remote host; false
      *   otherwise.
      */
-    public abstract void onClose(Socket sock, boolean remote);
+    public abstract void onClose(ClientSock conn, boolean remote);
 }
