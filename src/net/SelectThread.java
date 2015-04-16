@@ -87,16 +87,16 @@ class SelectThread extends Thread
                 switch(msg.type)
                 {
                 case CONNECT:
-                    handleAddSocket(msg);
+                    handleConnect(msg);
                     break;
                 case DISCONNECT:
-                    handleRemoveSocket(msg);
+                    handleDisconnect(msg);
                     break;
                 case START_LISTEN:
-                    handleAddServerSocket(msg);
+                    handleStartListening(msg);
                     break;
                 case STOP_LISTEN:
-                    handleRemoveServerSocket(msg);
+                    handleStopListening(msg);
                     break;
                 case CANCEL:
                     keepLooping = false;
@@ -181,18 +181,25 @@ class SelectThread extends Thread
     // methods below enqueue messages into the inMsgq //
     ////////////////////////////////////////////////////
 
-    public Socket connect(String remoteName, int remotePort)
+    public SocketChannel connect(String remoteName, int remotePort)
     {
-        Socket sock = new Socket();
-        Object address = new InetSocketAddress(remoteName,remotePort);
-        inMsgq.add(new Message(Type.CONNECT,sock,address));
-        selector.wakeup();
-        return sock;
+        try
+        {
+            SocketChannel channel = SocketChannel.open();
+            Object address = new InetSocketAddress(remoteName,remotePort);
+            inMsgq.add(new Message(Type.CONNECT,channel,address));
+            selector.wakeup();
+            return channel;
+        }
+        catch(Exception e)
+        {
+            throw new RuntimeException(e);
+        }
     }
 
-    public void disconnect(Socket sock)
+    public void disconnect(SocketChannel channel)
     {
-        inMsgq.add(new Message(Type.DISCONNECT,sock,null));
+        inMsgq.add(new Message(Type.DISCONNECT,channel,null));
         selector.wakeup();
     }
 
@@ -227,8 +234,10 @@ class SelectThread extends Thread
     // methods below dequeue and handle messages from inMsgq //
     ///////////////////////////////////////////////////////////
 
-    private void handleAddSocket(Message msg)
+    private void handleConnect(Message msg)
     {
+        SocketChannel channel = (String
+        Integer remotePort
         Socket sock = (Socket)msg.obj1;
         InetSocketAddress addr = (InetSocketAddress)msg.obj2;
 
@@ -259,7 +268,7 @@ class SelectThread extends Thread
         }
     }
 
-    private void handleRemoveSocket(Message msg)
+    private void handleDisconnect(Message msg)
     {
         Socket sock = (Socket)msg.obj1;
         SelectionKey key = keys.get(sock);
@@ -275,7 +284,7 @@ class SelectThread extends Thread
         }
     }
 
-    private void handleAddServerSocket(Message msg)
+    private void handleStartListening(Message msg)
     {
         ServerSocket sock = (ServerSocket)msg.obj1;
         Integer port = (Integer)msg.obj2;
@@ -306,7 +315,7 @@ class SelectThread extends Thread
         }
     }
 
-    private void handleRemoveServerSocket(Message msg)
+    private void handleStopListening(Message msg)
     {
         ServerSocket sock = (ServerSocket)msg.obj1;
         SelectionKey key = keys.get(sock);
