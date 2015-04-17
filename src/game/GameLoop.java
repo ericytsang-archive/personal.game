@@ -40,7 +40,7 @@ public class GameLoop
         keepLooping = false;
     }
 
-    public void loop() throws InterruptedException
+    public void loop()
     {
         // do the game loop
         keepLooping = true;
@@ -52,8 +52,25 @@ public class GameLoop
             render();
 
             long sleepTime = (long)start+STEP_INTERVAL-System.currentTimeMillis();
-            Thread.sleep(Math.max(sleepTime,0));
+            try
+            {
+                Thread.sleep(Math.max(sleepTime,0));
+            }
+            catch(InterruptedException e)
+            {
+                throw new RuntimeException(e);
+            }
         }
+    }
+
+    public void register(InputProvider i)
+    {
+        inputProviders.add(i);
+    }
+
+    public void unregister(InputProvider i)
+    {
+        inputProviders.remove(i);
     }
 
     public void register(Entity e)
@@ -102,6 +119,7 @@ public class GameLoop
 
         frame.setContentPane(canvas);
         frame.setSize(400,400);
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setVisible(true);
 
         GameLoop loop = new GameLoop(canvas);
