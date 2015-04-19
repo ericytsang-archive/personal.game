@@ -56,6 +56,9 @@ public abstract class SelectClient implements Client<SocketChannel>, SelectThrea
     public abstract void onConnectFail(SocketChannel conn, Exception e);
 
     @Override
+    public abstract void onOpen(SocketChannel channel);
+
+    @Override
     public abstract void onMessage(SocketChannel conn, Packet packet);
 
     @Override
@@ -90,6 +93,7 @@ public abstract class SelectClient implements Client<SocketChannel>, SelectThrea
         if(selectThread == null)
         {
             selectThread = new SelectThread();
+            selectThread.start();
         }
         return selectThread;
     }

@@ -1,6 +1,6 @@
 package net;
 
-public interface Client<ClientSock extends Object>
+public interface Client<ClientKey> extends Host<ClientKey>
 {
     /**
      * initiates a new connection to the remote server at the address
@@ -14,23 +14,14 @@ public interface Client<ClientSock extends Object>
      * @return   returns the {Object} used as a key that identifies this
      *   connection.
      */
-    public abstract ClientSock connect(String remoteAddr, int remotePort);
+    public abstract ClientKey connect(String remoteAddr, int remotePort);
 
     /**
      * disconnects the specified connection.
      *
      * @param conn connection to disconnect, and close.
      */
-    public abstract void disconnect(ClientSock conn);
-
-
-    /**
-     * sends a message to the client identified by the connection object.
-     *
-     * @param conn connection to send a message to
-     * @param packet packet to send from the connection.
-     */
-    public abstract void sendMessage(ClientSock conn, Packet packet);
+    public abstract void disconnect(ClientKey conn);
 
     /**
      * callback invoked when a new connection is established with the server.
@@ -38,7 +29,7 @@ public interface Client<ClientSock extends Object>
      * @param conn connection that is created to communicate with the new
      *   connection.
      */
-    public abstract void onConnect(ClientSock conn);
+    public abstract void onConnect(ClientKey conn);
 
     /**
      * callback invoked when a connection attempting to connect fails to
@@ -48,23 +39,5 @@ public interface Client<ClientSock extends Object>
      *   connection.
      * @param e   exception that occurred on the connection.
      */
-    public abstract void onConnectFail(ClientSock conn, Exception e);
-
-    /**
-     * callback invoked when a message from a connection is received.
-     *
-     * @param conn connection that the message was received from.
-     * @param packet packet received from the connection.
-     */
-    public abstract void onMessage(ClientSock conn, Packet packet);
-
-    /**
-     * callback invoked when the connection is closed by either the server, or
-     *   the client.
-     *
-     * @param conn connection that was closed.
-     * @param remote true if the connection was closed by the remote host; false
-     *   otherwise.
-     */
-    public abstract void onClose(ClientSock conn, boolean remote);
+    public abstract void onConnectFail(ClientKey conn, Exception e);
 }

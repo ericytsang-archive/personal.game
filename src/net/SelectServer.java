@@ -59,6 +59,9 @@ public abstract class SelectServer implements Server<ServerSocketChannel,SocketC
     public abstract void onAccept(SocketChannel channel);
 
     @Override
+    public abstract void onOpen(SocketChannel channel);
+
+    @Override
     public abstract void onMessage(SocketChannel channel, Packet packet);
 
     @Override
@@ -87,6 +90,7 @@ public abstract class SelectServer implements Server<ServerSocketChannel,SocketC
         if(selectThread == null)
         {
             selectThread = new SelectThread();
+            selectThread.start();
         }
         return selectThread;
     }
