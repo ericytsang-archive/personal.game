@@ -1,4 +1,4 @@
-package game;
+package framework;
 
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -13,7 +13,7 @@ public class GameLoop
 
     private final Canvas canvas;
 
-    private final Set<InputProvider> inputProviders;
+    private final Set<InputEntity> inputProviders;
 
     private final Set<Entity> entities;
 
@@ -28,6 +28,11 @@ public class GameLoop
         this.canvas = canvas;
         this.inputProviders = new LinkedHashSet<>();
         this.entities = new LinkedHashSet<>();
+    }
+
+    public GameLoop()
+    {
+        this(null);
     }
 
     //////////////////////
@@ -63,12 +68,12 @@ public class GameLoop
         }
     }
 
-    public void register(InputProvider i)
+    public void register(InputEntity i)
     {
         inputProviders.add(i);
     }
 
-    public void unregister(InputProvider i)
+    public void unregister(InputEntity i)
     {
         inputProviders.remove(i);
     }
@@ -89,7 +94,7 @@ public class GameLoop
 
     private final void processInputs()
     {
-        for(InputProvider i : inputProviders)
+        for(InputEntity i : inputProviders)
         {
             i.processInputs();
         }
@@ -105,7 +110,10 @@ public class GameLoop
 
     private final void render()
     {
-        canvas.repaint();
+        if(canvas != null)
+        {
+            canvas.repaint();
+        }
     }
 
     //////////

@@ -2,6 +2,7 @@ package net;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
@@ -11,6 +12,8 @@ import java.nio.channels.SocketChannel;
 import java.util.Iterator;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
+
+import javax.management.RuntimeErrorException;
 
 import net.SelectThread.Message.Type;
 
@@ -149,43 +152,48 @@ class SelectThread extends Thread
      */
     public void handleMessages(SelectListener listener)
     {
-        while(outMsgq.size() > 0)
+        synchronized(outMsgq)
         {
-            Message msg = outMsgq.remove();
-
-            switch(msg.type)
+            while(outMsgq.size() > 0)
             {
-            case ON_ACCEPT:
-                listener.onAccept((SocketChannel)msg.obj1);
-                break;
-            case ON_CONNECT:
-                listener.onConnect((SocketChannel)msg.obj1);
-                break;
-            case ON_ACCEPT_FAIL:
-                listener.onAcceptFail((ServerSocketChannel)msg.obj1,(Exception)msg.obj2);
-                break;
-            case ON_LISTEN_FAIL:
-                listener.onListenFail((ServerSocketChannel)msg.obj1,(Exception)msg.obj2);
-                break;
-            case ON_CONNECT_FAIL:
-                listener.onConnectFail((SocketChannel)msg.obj1,(Exception)msg.obj2);
-                break;
-            case ON_MESSAGE:
-                listener.onMessage((SocketChannel)msg.obj1,(Packet)msg.obj2);
-                break;
-            case ON_CLOSE:
-                listener.onClose((SocketChannel)msg.obj1,(boolean)msg.obj2);
-                try
+                Message msg = outMsgq.remove();
+
+                switch(msg.type)
                 {
-                    ((SocketChannel)msg.obj1).close();
+                case ON_ACCEPT:
+                    listener.onAccept((SocketChannel)msg.obj1);
+                    listener.onOpen((SocketChannel)msg.obj1);
+                    break;
+                case ON_CONNECT:
+                    listener.onConnect((SocketChannel)msg.obj1);
+                    listener.onOpen((SocketChannel)msg.obj1);
+                    break;
+                case ON_ACCEPT_FAIL:
+                    listener.onAcceptFail((ServerSocketChannel)msg.obj1,(Exception)msg.obj2);
+                    break;
+                case ON_LISTEN_FAIL:
+                    listener.onListenFail((ServerSocketChannel)msg.obj1,(Exception)msg.obj2);
+                    break;
+                case ON_CONNECT_FAIL:
+                    listener.onConnectFail((SocketChannel)msg.obj1,(Exception)msg.obj2);
+                    break;
+                case ON_MESSAGE:
+                    listener.onMessage((SocketChannel)msg.obj1,(Packet)msg.obj2);
+                    break;
+                case ON_CLOSE:
+                    listener.onClose((SocketChannel)msg.obj1,(boolean)msg.obj2);
+                    try
+                    {
+                        ((SocketChannel)msg.obj1).close();
+                    }
+                    catch (IOException e)
+                    {
+                        throw new RuntimeException(e);
+                    }
+                    break;
+                default:
+                    throw new RuntimeException("default case hit");
                 }
-                catch (IOException e)
-                {
-                    throw new RuntimeException(e);
-                }
-                break;
-            default:
-                throw new RuntimeException("default case hit");
             }
         }
     }
@@ -208,17 +216,20 @@ class SelectThread extends Thread
      */
     public SocketChannel connect(String remoteName, int remotePort)
     {
-        try
+        synchronized(inMsgq)
         {
-            SocketChannel channel = SocketChannel.open();
-            InetSocketAddress addr = new InetSocketAddress(remoteName,remotePort);
-            inMsgq.add(new Message(Type.CONNECT,channel,addr));
-            selector.wakeup();
-            return channel;
-        }
-        catch(Exception e)
-        {
-            throw new RuntimeException(e);
+            try
+            {
+                SocketChannel channel = SocketChannel.open();
+                InetSocketAddress addr = new InetSocketAddress(remoteName,remotePort);
+                inMsgq.add(new Message(Type.CONNECT,channel,addr));
+                selector.wakeup();
+                return channel;
+            }
+            catch(Exception e)
+            {
+                throw new RuntimeException(e);
+            }
         }
     }
 
@@ -230,8 +241,11 @@ class SelectThread extends Thread
      */
     public void disconnect(SocketChannel channel)
     {
-        inMsgq.add(new Message(Type.DISCONNECT,channel,null));
-        selector.wakeup();
+        synchronized(inMsgq)
+        {
+            inMsgq.add(new Message(Type.DISCONNECT,channel,null));
+            selector.wakeup();
+        }
     }
 
     /**
@@ -249,17 +263,20 @@ class SelectThread extends Thread
      */
     public ServerSocketChannel startListening(int serverPort)
     {
-        try
+        synchronized(inMsgq)
         {
-            ServerSocketChannel channel = ServerSocketChannel.open();
-            InetSocketAddress addr = new InetSocketAddress(serverPort);
-            inMsgq.add(new Message(Type.START_LISTEN,channel,addr));
-            selector.wakeup();
-            return channel;
-        }
-        catch(IOException e)
-        {
-            throw new RuntimeException(e);
+            try
+            {
+                ServerSocketChannel channel = ServerSocketChannel.open();
+                InetSocketAddress addr = new InetSocketAddress(serverPort);
+                inMsgq.add(new Message(Type.START_LISTEN,channel,addr));
+                selector.wakeup();
+                return channel;
+            }
+            catch(IOException e)
+            {
+                throw new RuntimeException(e);
+            }
         }
     }
 
@@ -272,8 +289,11 @@ class SelectThread extends Thread
      */
     public void stopListening(ServerSocketChannel channel)
     {
-        inMsgq.add(new Message(Type.STOP_LISTEN,channel,null));
-        selector.wakeup();
+        synchronized(inMsgq)
+        {
+            inMsgq.add(new Message(Type.STOP_LISTEN,channel,null));
+            selector.wakeup();
+        }
     }
 
     /**
@@ -284,8 +304,21 @@ class SelectThread extends Thread
      */
     public void sendMessage(SocketChannel channel, Packet packet)
     {
-        inMsgq.add(new Message(Type.SEND_MESSAGE,channel,packet));
-        selector.wakeup();
+//        System.out.println("packet.length put: "+packet.toBytes().length);
+//        try
+//        {
+//            throw new RuntimeException("EF YOU2");
+//        }
+//        catch(Exception e)
+//        {
+//            e.printStackTrace();
+//        }
+
+        synchronized(inMsgq)
+        {
+            inMsgq.add(new Message(Type.SEND_MESSAGE,channel,packet));
+            selector.wakeup();
+        }
     }
 
     /**
@@ -296,7 +329,10 @@ class SelectThread extends Thread
      */
     public void sendMessageOnThisThread(SocketChannel channel, Packet packet)
     {
-        handleSendMessage(new Message(Type.SEND_MESSAGE,channel,packet));
+        synchronized(inMsgq)
+        {
+            handleSendMessage(new Message(Type.SEND_MESSAGE,channel,packet));
+        }
     }
 
     /**
@@ -305,8 +341,11 @@ class SelectThread extends Thread
      */
     public void cancel()
     {
-        inMsgq.add(new Message(Type.CANCEL,null,null));
-        selector.wakeup();
+        synchronized(inMsgq)
+        {
+            inMsgq.add(new Message(Type.CANCEL,null,null));
+            selector.wakeup();
+        }
     }
 
     ////////////
@@ -415,6 +454,19 @@ class SelectThread extends Thread
     ///////////////////////
 
     // methods below are general helper methods
+
+    private int read(SocketChannel channel, ByteBuffer dst) throws IOException
+    {
+        int ret = dst.remaining();
+        while(dst.remaining() > 0)
+        {
+            if(channel.read(dst) == -1)
+            {
+                return -1;
+            }
+        }
+        return ret;
+    }
 
     private void registerChannel(SocketChannel channel)
     {
@@ -541,6 +593,16 @@ class SelectThread extends Thread
         // parse message parameters
         SocketChannel channel = (SocketChannel)msg.obj1;
         Packet packet = (Packet)msg.obj2;
+        System.out.println("packet.length send: "+packet.toBytes().length);
+        try
+        {
+            if(packet.toBytes().length == 8)
+                throw new RuntimeException("EF YOU");
+        }
+        catch(Exception e)
+        {
+            e.printStackTrace();
+        }
 
         // send the message out the channel
         synchronized(channel)
@@ -552,7 +614,10 @@ class SelectThread extends Thread
                 buf.putInt(packetData.length);
                 buf.put(packetData);
                 buf.position(0);
-                channel.write(buf);
+                while(buf.remaining() > 0)
+                {
+                    System.out.println("channel.write: "+channel.write(buf));
+                }
             }
             catch (IOException e)
             {
@@ -614,26 +679,37 @@ class SelectThread extends Thread
 
         try
         {
-            ByteBuffer len = ByteBuffer.allocate(4);
-            if(channel.read(len) != -1)
+            synchronized(channel)
             {
-                len.position(0);
-                int adsf = len.getInt();
-                ByteBuffer packetData = ByteBuffer.allocate(adsf);
-                channel.read(packetData);
-                packetData.position(0);
-                Packet packet = new Packet().fromBytes(packetData.array());
-                outMsgq.add(new Message(Type.ON_MESSAGE,channel,packet));
+                ByteBuffer len = ByteBuffer.allocate(4);
+                if(read(channel,len) != -1)
+                {
+                    len.position(0);
+                    ByteBuffer packetData = ByteBuffer.allocate(len.getInt());
+                    read(channel,packetData);
+                    packetData.position(0);
+                    Packet packet = new Packet().fromBytes(packetData.array());
+                    System.out.println("packet.length recv: "+packet.toBytes().length+" length: "+packetData.capacity());
+                    outMsgq.add(new Message(Type.ON_MESSAGE,channel,packet));
+                }
+                else
+                {
+                    channel.keyFor(selector).cancel();
+                    outMsgq.add(new Message(Type.ON_CLOSE,channel,true));
+                }
             }
-            else
-            {
-                channel.keyFor(selector).cancel();
-                outMsgq.add(new Message(Type.ON_CLOSE,channel,true));
-            }
+        }
+        catch (SocketException e)
+        {
+            // socket closed by local host
+            channel.keyFor(selector).cancel();
+            outMsgq.add(new Message(Type.ON_CLOSE,channel,false));
         }
         catch (IOException e)
         {
-            throw new RuntimeException(e);
+            // socket closed by remote host
+            channel.keyFor(selector).cancel();
+            outMsgq.add(new Message(Type.ON_CLOSE,channel,true));
         }
     }
 
@@ -645,6 +721,7 @@ class SelectThread extends Thread
     {
         public abstract void onAccept(SocketChannel chnl);
         public abstract void onConnect(SocketChannel chnl);
+        public abstract void onOpen(SocketChannel chnl);
         public abstract void onAcceptFail(ServerSocketChannel chnl, Exception e);
         public abstract void onListenFail(ServerSocketChannel chnl, Exception e);
         public abstract void onConnectFail(SocketChannel chnl, Exception e);
@@ -738,6 +815,11 @@ class SelectThread extends Thread
             public void onClose(SocketChannel chnl, boolean remote)
             {
                 System.out.println(chnl+": onClose");
+            }
+            @Override
+            public void onOpen(SocketChannel chnl)
+            {
+                System.out.println(chnl+": onOpen");
             }
         };
 

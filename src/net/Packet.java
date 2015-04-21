@@ -18,7 +18,7 @@ import java.util.Stack;
  *
  * @author Eric Tsang
  */
-public class Packet
+public class Packet implements framework.Serializable
 {
     /**
      * the packet's internal stack of data, where data is pushed onto, and

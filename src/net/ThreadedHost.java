@@ -470,6 +470,12 @@ public abstract class ThreadedHost implements Server<ServerSocket,Socket>, Clien
                 // TODO Auto-generated method stub
                 
             }
+            @Override
+            public void onOpen(Socket conn)
+            {
+                // TODO Auto-generated method stub
+                
+            }
         };
         ThreadedHost h2 = new ThreadedHost()
         {
@@ -508,6 +514,12 @@ public abstract class ThreadedHost implements Server<ServerSocket,Socket>, Clien
             }
             @Override
             public void onAcceptFail(ServerSocket sock, Exception e)
+            {
+                // TODO Auto-generated method stub
+                
+            }
+            @Override
+            public void onOpen(Socket conn)
             {
                 // TODO Auto-generated method stub
                 
