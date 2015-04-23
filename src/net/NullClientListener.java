@@ -1,14 +1,14 @@
 package net;
 
-public class NullHostListener<ClientKey> implements HostListener<ClientKey>
+public class NullClientListener<ClientKey> implements ClientListener<ClientKey>
 {
     @Override
-    public void onOpen(ClientKey sock)
+    public void onConnect(ClientKey sock)
     {
     }
 
     @Override
-    public void onError(Object obj, Exception e)
+    public void onConnectFail(ClientKey sock, Exception e)
     {
     }
 

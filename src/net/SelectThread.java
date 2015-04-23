@@ -13,8 +13,6 @@ import java.util.Iterator;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import javax.management.RuntimeErrorException;
-
 import net.SelectThread.Message.Type;
 
 /**
@@ -112,9 +110,9 @@ class SelectThread extends Thread
         this(null);
     }
 
-    //////////////////////
-    // public interface //
-    //////////////////////
+    /////////////////////////
+    // protected interface //
+    /////////////////////////
 
     // methods below used to determine how callbacks are handled; either right
     // away (setListener), or later, on another calling thread (handleMessages)
@@ -126,7 +124,7 @@ class SelectThread extends Thread
      *
      * @param   listener   listener to invoke the callbacks of.
      */
-    public SelectThread setListener(SelectListener listener)
+    protected SelectThread setListener(SelectListener listener)
     {
         this.listener = listener;
         return this;
@@ -136,7 +134,7 @@ class SelectThread extends Thread
      * removes the listener from the {SelectThread}, so that its callbacks are
      *   no longer invoked.
      */
-    public SelectThread unsetListener()
+    protected SelectThread unsetListener()
     {
         setListener(null);
         return this;
@@ -150,7 +148,7 @@ class SelectThread extends Thread
      * @param   listener   listener used to handle the messages from the
      *   {SelecThread}.
      */
-    public void handleMessages(SelectListener listener)
+    protected void handleMessages(SelectListener listener)
     {
         synchronized(outMsgq)
         {
@@ -162,11 +160,9 @@ class SelectThread extends Thread
                 {
                 case ON_ACCEPT:
                     listener.onAccept((SocketChannel)msg.obj1);
-                    listener.onOpen((SocketChannel)msg.obj1);
                     break;
                 case ON_CONNECT:
                     listener.onConnect((SocketChannel)msg.obj1);
-                    listener.onOpen((SocketChannel)msg.obj1);
                     break;
                 case ON_ACCEPT_FAIL:
                     listener.onAcceptFail((ServerSocketChannel)msg.obj1,(Exception)msg.obj2);
@@ -214,7 +210,7 @@ class SelectThread extends Thread
      *
      * @return   [description]
      */
-    public SocketChannel connect(String remoteName, int remotePort)
+    protected SocketChannel connect(String remoteName, int remotePort)
     {
         synchronized(inMsgq)
         {
@@ -239,7 +235,7 @@ class SelectThread extends Thread
      *
      * @param   channel   channel to close.
      */
-    public void disconnect(SocketChannel channel)
+    protected void disconnect(SocketChannel channel)
     {
         synchronized(inMsgq)
         {
@@ -261,7 +257,7 @@ class SelectThread extends Thread
      * @return   the new {ServerSocketChannel} created to listen to
      *   {serverPort}.
      */
-    public ServerSocketChannel startListening(int serverPort)
+    protected ServerSocketChannel startListening(int serverPort)
     {
         synchronized(inMsgq)
         {
@@ -287,7 +283,7 @@ class SelectThread extends Thread
      *
      * @param   channel   {ServerSocketChannel} to close.
      */
-    public void stopListening(ServerSocketChannel channel)
+    protected void stopListening(ServerSocketChannel channel)
     {
         synchronized(inMsgq)
         {
@@ -302,7 +298,7 @@ class SelectThread extends Thread
      * @param   channel   channel to send the message to.
      * @param   packet   packet to send through the channel.
      */
-    public void sendMessage(SocketChannel channel, Packet packet)
+    protected void sendMessage(SocketChannel channel, Packet packet)
     {
 //        System.out.println("packet.length put: "+packet.toBytes().length);
 //        try
@@ -327,7 +323,7 @@ class SelectThread extends Thread
      * @param   channel   channel to send the message to.
      * @param   packet   packet to send through the channel.
      */
-    public void sendMessageOnThisThread(SocketChannel channel, Packet packet)
+    protected void sendMessageOnThisThread(SocketChannel channel, Packet packet)
     {
         synchronized(inMsgq)
         {
@@ -339,7 +335,7 @@ class SelectThread extends Thread
      * cancels the {SelectThread}, so that it stops running, and accumulating
      *   messages to handle.
      */
-    public void cancel()
+    protected void cancel()
     {
         synchronized(inMsgq)
         {
@@ -717,17 +713,7 @@ class SelectThread extends Thread
     // SelectListener //
     ////////////////////
 
-    public interface SelectListener
-    {
-        public abstract void onAccept(SocketChannel chnl);
-        public abstract void onConnect(SocketChannel chnl);
-        public abstract void onOpen(SocketChannel chnl);
-        public abstract void onAcceptFail(ServerSocketChannel chnl, Exception e);
-        public abstract void onListenFail(ServerSocketChannel chnl, Exception e);
-        public abstract void onConnectFail(SocketChannel chnl, Exception e);
-        public abstract void onMessage(SocketChannel chnl, Packet packet);
-        public abstract void onClose(SocketChannel chnl, boolean remote);
-    }
+    public interface SelectListener extends ClientListener<SocketChannel>,ServerListener<SocketChannel,ServerSocketChannel>{}
 
     /////////////
     // Message //
@@ -815,11 +801,6 @@ class SelectThread extends Thread
             public void onClose(SocketChannel chnl, boolean remote)
             {
                 System.out.println(chnl+": onClose");
-            }
-            @Override
-            public void onOpen(SocketChannel chnl)
-            {
-                System.out.println(chnl+": onOpen");
             }
         };
 

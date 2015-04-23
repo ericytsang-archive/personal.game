@@ -1,6 +1,6 @@
 package net;
 
-public interface Server<ServerKey,ClientKey> extends Host<ClientKey>
+public interface Server<ClientKey,ServerKey>
 {
     /**
      * starts the server, and makes it listening for connections on the passed
@@ -21,26 +21,10 @@ public interface Server<ServerKey,ClientKey> extends Host<ClientKey>
     public abstract void stopListening(ServerKey socket);
 
     /**
-     * callback invoked when a new connection is established with the server.
+     * sends a message to the client identified by the connection object.
      *
-     * @param sock socket that is created to communicate with the new
-     *   connection.
+     * @param sock connection to send a message to
+     * @param packet packet to send from the socket.
      */
-    public abstract void onAccept(ClientKey sock);
-
-    /**
-     * callback invoked when the call to accept a new connection fails.
-     *
-     * @param sock socket that got the exception.
-     * @param e exception that occurred on the socket.
-     */
-    public abstract void onAcceptFail(ServerKey sock, Exception e);
-
-    /**
-     * invoked when a listening socket somehow gets an exception.
-     *
-     * @param sock socket that got the exception.
-     * @param e exception that occurred on the socket.
-     */
-    public abstract void onListenFail(ServerKey sock, Exception e);
+    public abstract void sendMessage(ClientKey sock, Packet packet);
 }

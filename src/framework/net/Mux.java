@@ -165,18 +165,16 @@ public abstract class Mux<ClientKey> implements HostListener<ClientKey>
         }
     }
 
-    ////////////////////
-    // HostListener<> //
-    ////////////////////
+    /////////////////////////////
+    // HostListener<ClientKey> //
+    /////////////////////////////
 
-    @Override
     public void onOpen(ClientKey conn)
     {
         System.out.println("connection"+conn.hashCode()+" opened");
         clients.add(conn);
     }
 
-    @Override
     public void onMessage(ClientKey conn, Packet packet)
     {
         // parse header data from packet
@@ -189,7 +187,6 @@ public abstract class Mux<ClientKey> implements HostListener<ClientKey>
         onMessage(id,pairType,msgType,packet);
     }
 
-    @Override
     public void onClose(ClientKey conn, boolean remote)
     {
         System.out.println("connection"+conn.hashCode()+" closed by "+(remote?"remote":"local")+" host");

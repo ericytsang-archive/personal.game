@@ -97,4 +97,10 @@ public class ServerMux<ClientKey> extends Mux<ClientKey>
         // added to future clients that connect
         sharedEntities.add(ctrl);
     }
+
+    @Override
+    public void onError(Object obj, Exception e)
+    {
+        throw new RuntimeException(e);
+    }
 }

@@ -57,4 +57,10 @@ public class ClientMux<ClientKey> extends Mux<ClientKey>
 
         return ret;
     }
+
+    @Override
+    public void onError(Object obj, Exception e)
+    {
+        throw new RuntimeException(e);
+    }
 }

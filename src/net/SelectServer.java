@@ -3,13 +3,37 @@ package net;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 
-public abstract class SelectServer implements Server<ServerSocketChannel,SocketChannel>, SelectThread.SelectListener
+public abstract class SelectServer implements Server<SocketChannel,ServerSocketChannel>, SelectThread.SelectListener
 {
     /**
      * the select thread of this class. isn't instantiated directly, instead,
      *   get the instane's select thread using the getSelectThread method.
      */
     private SelectThread selectThread;
+
+    private ServerListener<SocketChannel,ServerSocketChannel> observer;
+
+    private static final ServerListener<SocketChannel,ServerSocketChannel>
+            NULL_OBSERVER = new NullServerListener<>();
+
+    /////////////////
+    // constructor //
+    /////////////////
+
+    public SelectServer()
+    {
+        this.observer = NULL_OBSERVER;
+    }
+
+    //////////////////////
+    // public interface //
+    //////////////////////
+
+    public SelectServer setObserver(ServerListener<SocketChannel,ServerSocketChannel> observer)
+    {
+        this.observer = (observer != null) ? observer : NULL_OBSERVER;
+        return this;
+    }
 
     //////////////////////////////////////////////
     // public interface & Server implementation //
@@ -50,22 +74,34 @@ public abstract class SelectServer implements Server<ServerSocketChannel,SocketC
     // callbacks
 
     @Override
-    public abstract void onAcceptFail(ServerSocketChannel channel, Exception e);
+    public final void onAcceptFail(ServerSocketChannel channel, Exception e)
+    {
+        observer.onAcceptFail(channel,e);
+    }
 
     @Override
-    public abstract void onListenFail(ServerSocketChannel channel, Exception e);
+    public final void onListenFail(ServerSocketChannel channel, Exception e)
+    {
+        observer.onListenFail(channel,e);
+    }
 
     @Override
-    public abstract void onAccept(SocketChannel channel);
+    public final void onAccept(SocketChannel channel)
+    {
+        observer.onAccept(channel);
+    }
 
     @Override
-    public abstract void onOpen(SocketChannel channel);
+    public final void onMessage(SocketChannel channel, Packet packet)
+    {
+        observer.onMessage(channel,packet);
+    }
 
     @Override
-    public abstract void onMessage(SocketChannel channel, Packet packet);
-
-    @Override
-    public abstract void onClose(SocketChannel channel, boolean remote);
+    public final void onClose(SocketChannel channel, boolean remote)
+    {
+        observer.onClose(channel,remote);
+    }
 
     // unused callbacks
 

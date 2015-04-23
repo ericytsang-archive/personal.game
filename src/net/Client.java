@@ -1,6 +1,6 @@
 package net;
 
-public interface Client<ClientKey> extends Host<ClientKey>
+public interface Client<ClientKey>
 {
     /**
      * initiates a new connection to the remote server at the address
@@ -19,25 +19,15 @@ public interface Client<ClientKey> extends Host<ClientKey>
     /**
      * disconnects the specified connection.
      *
-     * @param conn connection to disconnect, and close.
+     * @param sock connection to disconnect, and close.
      */
-    public abstract void disconnect(ClientKey conn);
+    public abstract void disconnect(ClientKey sock);
 
     /**
-     * callback invoked when a new connection is established with the server.
+     * sends a message to the client identified by the connection object.
      *
-     * @param conn connection that is created to communicate with the new
-     *   connection.
+     * @param sock connection to send a message to
+     * @param packet packet to send from the socket.
      */
-    public abstract void onConnect(ClientKey conn);
-
-    /**
-     * callback invoked when a connection attempting to connect fails to
-     *   connect.
-     *
-     * @param conn   connection that is created to communicate with the new
-     *   connection.
-     * @param e   exception that occurred on the connection.
-     */
-    public abstract void onConnectFail(ClientKey conn, Exception e);
+    public abstract void sendMessage(ClientKey sock, Packet packet);
 }

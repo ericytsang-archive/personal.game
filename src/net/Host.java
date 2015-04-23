@@ -1,7 +1,6 @@
 package net;
 
-
-public interface Host<ClientKey> extends HostListener<ClientKey>
+public interface Host<ClientKey>
 {
     /**
      * sends a message to the client identified by the connection object.

@@ -1,5 +1,6 @@
 package framework;
 
+import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 
 import framework.net.GameClient;
@@ -7,6 +8,9 @@ import framework.net.Mux;
 import game.ClientMux;
 
 import javax.swing.JFrame;
+
+import net.HostAdapter;
+import net.HostListenerAdapter;
 
 public class ClientMain
 {
@@ -20,14 +24,18 @@ public class ClientMain
         Canvas canvas = new Canvas();
         GameLoop gameLoop = new GameLoop(canvas);
         GameClient clnt = new GameClient();
-        Mux.setInstance(new ClientMux<SocketChannel>(clnt,frame,canvas,gameLoop));
-        clnt.setHostListener(Mux.<SocketChannel>getInstance());
+        Mux.setInstance(new ClientMux<SocketChannel>(
+                new HostAdapter<SocketChannel,ServerSocketChannel>(clnt),
+                frame,canvas,gameLoop));
 
         frame.setContentPane(canvas);
         frame.setSize(FRAME_WIDTH,FRAME_HEIGHT);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setVisible(true);
 
+        clnt.setObserver(
+                new HostListenerAdapter<SocketChannel,ServerSocketChannel>()
+                .setObserver(Mux.<SocketChannel>getInstance()));
         clnt.connect("localhost",7000);
 
         gameLoop.register(clnt);

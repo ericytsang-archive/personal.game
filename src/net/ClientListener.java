@@ -1,6 +1,6 @@
 package net;
 
-public interface HostListener<ClientKey>
+public interface ClientListener<ClientKey>
 {
     /**
      * callback invoked when a new connection is established with the server.
@@ -8,15 +8,17 @@ public interface HostListener<ClientKey>
      * @param sock connection that is created to communicate with the new
      *   connection.
      */
-    public abstract void onOpen(ClientKey sock);
+    public abstract void onConnect(ClientKey sock);
 
     /**
-     * callback invoked when any sort of error occurs.
+     * callback invoked when a connection attempting to connect fails to
+     *   connect.
      *
-     * @param obj object that the message was received from.
-     * @param e thrown exception.
+     * @param sock   connection that is created to communicate with the new
+     *   connection.
+     * @param e   exception that occurred on the connection.
      */
-    public abstract void onError(Object obj, Exception e);
+    public abstract void onConnectFail(ClientKey sock, Exception e);
 
     /**
      * callback invoked when a message from a connection is received.

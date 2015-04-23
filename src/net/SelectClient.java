@@ -11,6 +11,30 @@ public abstract class SelectClient implements Client<SocketChannel>, SelectThrea
      */
     private SelectThread selectThread;
 
+    private ClientListener<SocketChannel> observer;
+
+    private static final NullClientListener<SocketChannel> NULL_OBSERVER
+            = new NullClientListener<>();
+
+    /////////////////
+    // constructor //
+    /////////////////
+
+    public SelectClient()
+    {
+        this.observer = NULL_OBSERVER;
+    }
+
+    //////////////////////
+    // public interface //
+    //////////////////////
+
+    public SelectClient setObserver(ClientListener<SocketChannel> observer)
+    {
+        this.observer = (observer != null) ? observer : NULL_OBSERVER;
+        return this;
+    }
+
     //////////////////////////////////////////////
     // public interface & Client implementation //
     //////////////////////////////////////////////
@@ -50,19 +74,28 @@ public abstract class SelectClient implements Client<SocketChannel>, SelectThrea
     // callbacks
 
     @Override
-    public abstract void onConnect(SocketChannel conn);
+    public final void onConnect(SocketChannel conn)
+    {
+        observer.onConnect(conn);
+    }
 
     @Override
-    public abstract void onConnectFail(SocketChannel conn, Exception e);
+    public final void onConnectFail(SocketChannel conn, Exception e)
+    {
+        observer.onConnectFail(conn,e);
+    }
 
     @Override
-    public abstract void onOpen(SocketChannel channel);
+    public final void onMessage(SocketChannel conn, Packet packet)
+    {
+        observer.onMessage(conn,packet);
+    }
 
     @Override
-    public abstract void onMessage(SocketChannel conn, Packet packet);
-
-    @Override
-    public abstract void onClose(SocketChannel conn, boolean remote);
+    public final void onClose(SocketChannel conn, boolean remote)
+    {
+        observer.onClose(conn,remote);
+    }
 
     // unused callbacks
 
