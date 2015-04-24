@@ -11,9 +11,9 @@ public class ServerCommand extends framework.net.Entity
     // constructors //
     //////////////////
 
-    public ServerCommand(int id, PairType pairType)
+    public ServerCommand()
     {
-        super(id,pairType);
+        super(PairType.SVRCMD_CLNTCMD);
     }
 
     //////////////////////

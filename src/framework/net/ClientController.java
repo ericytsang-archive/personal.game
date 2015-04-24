@@ -11,10 +11,9 @@ public class ClientController extends framework.net.Entity implements Controller
 {
     private Queue<Packet> events;
 
-    public ClientController(int id, PairType pairType)
+    public ClientController(int id)
     {
-        super(id, pairType);
-        System.out.println("ClientController created");
+        super(id,PairType.SVRCTRL_NETCTRL);
         this.events = new LinkedBlockingQueue<>();
     }
 

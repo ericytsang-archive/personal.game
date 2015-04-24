@@ -12,11 +12,11 @@ import net.Packet;
 
 public class ClientMux<ClientKey> extends Mux<ClientKey>
 {
-    private JFrame frame;
+    private final JFrame frame;
 
-    private Canvas canvas;
+    private final Canvas canvas;
 
-    private GameLoop gameLoop;
+    private final GameLoop gameLoop;
 
     public ClientMux(Host<ClientKey> adaptee, JFrame frame, Canvas canvas, GameLoop gameLoop)
     {
@@ -27,25 +27,27 @@ public class ClientMux<ClientKey> extends Mux<ClientKey>
     }
 
     @Override
-    public Entity makeEntity(int id, PairType pairType, Packet packet)
+    protected Entity onRegister(int id, PairType pairType, Packet packet)
     {
         Entity ret;
 
         switch(pairType)
         {
         case SVRCMD_CLNTCMD:
-            System.out.println("Command Entity Created");
-            ClientCommand cmd = new ClientCommand(id,pairType);
+            ClientCommand cmd = new ClientCommand(id);
             frame.addKeyListener(cmd);
             frame.addMouseListener(cmd);
             ret = cmd;
             break;
-        case CMDCTRL_NETCTRL:
-            ClientController ctrl = new ClientController(id,pairType);
-            String controlleeName = new String(packet.popData());
+        case SVRCTRL_NETCTRL:
+            ClientController ctrl = new ClientController(id);
+            String controlleeName = new String(packet.peekData());
+            packet = packet.popData();
             if(controlleeName.equals(Gunner.class.getSimpleName()))
             {
-                Gunner gunner = new Gunner(ctrl,0,0).fromBytes(packet.popData());
+                System.out.println("Making gunner...");
+                Gunner gunner = new Gunner(ctrl,0,0).fromBytes(packet.peekData());
+                packet = packet.popData();
                 gunner.setCanvas(canvas);
                 gunner.setGameLoop(gameLoop);
             }
@@ -56,11 +58,5 @@ public class ClientMux<ClientKey> extends Mux<ClientKey>
         }
 
         return ret;
-    }
-
-    @Override
-    public void onError(Object obj, Exception e)
-    {
-        throw new RuntimeException(e);
     }
 }

@@ -87,13 +87,14 @@ public class Packet implements framework.Serializable
         }
 
         // move the data from the reversed stack onto the real one
+        Packet ret = new Packet();
         while(reversedSections.size() > 0)
         {
-            pushData(reversedSections.pop());
+            ret = ret.pushData(reversedSections.pop());
         }
 
         // return the packet
-        return this;
+        return ret;
     }
 
     /**
@@ -134,14 +135,17 @@ public class Packet implements framework.Serializable
      */
     public Packet pushData(byte[] data)
     {
+        // create a copy of this packet
+        Packet p = new Packet().fromBytes(toBytes());
+
         // update book keeping variables
-        packetLength += data.length;
+        p.packetLength += data.length;
 
         // put the data on our stack
-        packetData.push(data);
+        p.packetData.push(data);
 
         // return this, so we can chain stuff
-        return this;
+        return p;
     }
 
     /**
@@ -151,16 +155,19 @@ public class Packet implements framework.Serializable
      * @return   the data of the current header of the packet, and removes it
      *   from the packet.
      */
-    public byte[] popData()
+    public Packet popData()
     {
+        // create a copy of this packet
+        Packet p = new Packet().fromBytes(toBytes());
+
         // pop the the data from the stack & parse it
-        byte[] data = packetData.pop();
+        byte[] data = p.packetData.pop();
 
         // update book keeping variables
-        packetLength -= data.length;
+        p.packetLength -= data.length;
 
         // return the data
-        return data;
+        return p;
     }
 
     /**
@@ -188,9 +195,9 @@ public class Packet implements framework.Serializable
 
         System.out.println(Arrays.toString(p.fromBytes(p.toBytes()).toBytes()));
 
-        System.out.println(Arrays.toString(p.popData()));
-        System.out.println(Arrays.toString(p.popData()));
-        System.out.println(Arrays.toString(p.popData()));
-        System.out.println(Arrays.toString(p.popData()));
+        System.out.println(Arrays.toString(p.popData().peekData()));
+        System.out.println(Arrays.toString(p.popData().peekData()));
+        System.out.println(Arrays.toString(p.popData().peekData()));
+        System.out.println(Arrays.toString(p.popData().peekData()));
     }
 }

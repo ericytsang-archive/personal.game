@@ -12,16 +12,19 @@ import net.Packet;
 
 public class ClientCommand extends framework.net.Entity implements KeyListener, MouseListener
 {
-    private Set<Integer> pressedKeys;
+    private final Set<Integer> pressedKeys;
+
+    private final Set<Integer> pressedMouseButtons; 
 
     //////////////////
     // constructors //
     //////////////////
 
-    public ClientCommand(int id, PairType pairType)
+    public ClientCommand(int id)
     {
-        super(id,pairType);
+        super(id,PairType.SVRCMD_CLNTCMD);
         pressedKeys = new LinkedHashSet<>();
+        pressedMouseButtons = new LinkedHashSet<>();
     }
 
     /////////////////
@@ -111,31 +114,73 @@ public class ClientCommand extends framework.net.Entity implements KeyListener, 
     ///////////////////
 
     @Override
-    public void mouseReleased(MouseEvent arg0)
+    public void mousePressed(MouseEvent e)
     {
-        
+        // check if the button is already pressed. if it isn't continue, short
+        // circuit otherwise
+        if(pressedKeys.contains(e.getButton()))
+        {
+            return;
+        }
+        else
+        {
+            pressedKeys.add(e.getButton());
+        }
+
+        // create the command packet, and send it
+        ByteBuffer payload = ByteBuffer.allocate(4);
+        Packet packet = new Packet();
+
+        switch(e.getButton())
+        {
+        case MouseEvent.BUTTON1:
+            payload.putInt(Command.START_SHOOTING.ordinal());
+            break;
+        default:
+            // if there is no command, don't send anything
+            return;
+        }
+
+        update(packet.pushData(payload.array()));
     }
 
     @Override
-    public void mouseClicked(MouseEvent arg0)
+    public void mouseReleased(MouseEvent e)
+    {
+        // remove the button from set of pressed button
+        pressedMouseButtons.add(e.getButton());
+
+        // create the command packet, and send it
+        ByteBuffer payload = ByteBuffer.allocate(4);
+        Packet packet = new Packet();
+
+        switch(e.getButton())
+        {
+        case MouseEvent.BUTTON1:
+            payload.putInt(Command.STOP_SHOOTING.ordinal());
+            break;
+        default:
+            // if there is no command, don't send anything
+            return;
+        }
+
+        update(packet.pushData(payload.array()));
+    }
+
+    @Override
+    public void mouseClicked(MouseEvent e)
     {
         // do nothing
     }
 
     @Override
-    public void mouseEntered(MouseEvent arg0)
+    public void mouseEntered(MouseEvent e)
     {
         // do nothing
     }
 
     @Override
-    public void mouseExited(MouseEvent arg0)
-    {
-        // do nothing
-    }
-
-    @Override
-    public void mousePressed(MouseEvent arg0)
+    public void mouseExited(MouseEvent e)
     {
         // do nothing
     }

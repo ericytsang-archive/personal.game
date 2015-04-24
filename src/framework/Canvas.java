@@ -2,6 +2,7 @@ package framework;
 
 import java.awt.Graphics;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -18,7 +19,7 @@ public class Canvas extends JPanel
 
     public Canvas()
     {
-        this.drawables = new TreeSet<>(new DrawableComparator());
+        this.drawables = new TreeSet<Drawable>(new DrawableComparator());
     }
 
     //////////////////////
@@ -52,7 +53,12 @@ public class Canvas extends JPanel
     {
         public int compare(Drawable e1, Drawable e2)
         {
-            return e1.getRenderDepth()-e2.getRenderDepth();
+            int ret = e1.getRenderDepth()-e2.getRenderDepth();
+            if(ret == 0)
+            {
+                ret = e1.hashCode() - e2.hashCode();
+            }
+            return ret;
         }
     }
 }

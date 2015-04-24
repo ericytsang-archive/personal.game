@@ -300,16 +300,6 @@ class SelectThread extends Thread
      */
     protected void sendMessage(SocketChannel channel, Packet packet)
     {
-//        System.out.println("packet.length put: "+packet.toBytes().length);
-//        try
-//        {
-//            throw new RuntimeException("EF YOU2");
-//        }
-//        catch(Exception e)
-//        {
-//            e.printStackTrace();
-//        }
-
         synchronized(inMsgq)
         {
             inMsgq.add(new Message(Type.SEND_MESSAGE,channel,packet));
@@ -589,16 +579,6 @@ class SelectThread extends Thread
         // parse message parameters
         SocketChannel channel = (SocketChannel)msg.obj1;
         Packet packet = (Packet)msg.obj2;
-        System.out.println("packet.length send: "+packet.toBytes().length);
-        try
-        {
-            if(packet.toBytes().length == 8)
-                throw new RuntimeException("EF YOU");
-        }
-        catch(Exception e)
-        {
-            e.printStackTrace();
-        }
 
         // send the message out the channel
         synchronized(channel)
@@ -612,7 +592,7 @@ class SelectThread extends Thread
                 buf.position(0);
                 while(buf.remaining() > 0)
                 {
-                    System.out.println("channel.write: "+channel.write(buf));
+                    channel.write(buf);
                 }
             }
             catch (IOException e)
@@ -685,7 +665,6 @@ class SelectThread extends Thread
                     read(channel,packetData);
                     packetData.position(0);
                     Packet packet = new Packet().fromBytes(packetData.array());
-                    System.out.println("packet.length recv: "+packet.toBytes().length+" length: "+packetData.capacity());
                     outMsgq.add(new Message(Type.ON_MESSAGE,channel,packet));
                 }
                 else
@@ -794,7 +773,7 @@ class SelectThread extends Thread
             @Override
             public void onMessage(SocketChannel chnl, Packet packet)
             {
-                System.out.println(chnl+": "+new String(packet.popData()));
+                System.out.println(chnl+": "+new String(packet.popData().peekData()));
                 st2.disconnect(chnl);
             }
             @Override

@@ -13,9 +13,9 @@ public class ServerController extends framework.net.Entity implements Controller
 
     private framework.Entity controllee;
 
-    public ServerController(int id, PairType pairType)
+    public ServerController()
     {
-        super(id,pairType);
+        super(PairType.SVRCTRL_NETCTRL);
         System.out.println("ServerController created");
         this.events = new LinkedBlockingQueue<>();
     }
@@ -34,6 +34,7 @@ public class ServerController extends framework.net.Entity implements Controller
     @Override
     public final Packet[] getEvents()
     {
+        controllee.serverUpdate();
         Packet[] eventsArr = new Packet[events.size()];
         events.toArray(eventsArr);
         events.clear();

@@ -12,8 +12,6 @@ import net.Packet;
 
 public class ServerMux<ClientKey> extends Mux<ClientKey>
 {
-    private int nextEntityId;
-
     private GameLoop gameLoop;
 
     /**
@@ -24,35 +22,14 @@ public class ServerMux<ClientKey> extends Mux<ClientKey>
     public ServerMux(Host<ClientKey> adaptee, GameLoop gameLoop)
     {
         super(adaptee);
-        this.gameLoop = gameLoop;
-        this.nextEntityId = 0;
         this.sharedEntities = new LinkedHashSet<>();
+        this.gameLoop = gameLoop;
     }
 
     @Override
-    public Entity makeEntity(int id, PairType pairType, Packet packet)
+    protected Entity onRegister(int id, PairType pairType, Packet packet)
     {
-        Entity ret;
-
-        switch(pairType)
-        {
-        case SVRCMD_CLNTCMD:
-            System.out.println("Command Entity Created");
-            ret = new ServerCommand(id,pairType);
-            break;
-        case CMDCTRL_NETCTRL:
-            ret = new ServerController(id,pairType);
-            break;
-        default:
-            throw new RuntimeException("default case hit");
-        }
-
-        return ret;
-    }
-
-    public Entity makeEntity(PairType pairType, Packet packet)
-    {
-        return makeEntity(nextEntityId++,pairType,packet);
+        throw new RuntimeException("onRegister called on server");
     }
 
     /**
@@ -76,8 +53,8 @@ public class ServerMux<ClientKey> extends Mux<ClientKey>
         // create the command and controller entities on the server side, and
         // link them so that commands received on the command entity get piped
         // to the controller
-        ServerCommand cmd = (ServerCommand) makeEntity(PairType.SVRCMD_CLNTCMD,null);
-        ServerController ctrl = (ServerController) makeEntity(PairType.CMDCTRL_NETCTRL,null);
+        ServerCommand cmd = new ServerCommand();
+        ServerController ctrl = new ServerController();
         Gunner gunner = new Gunner(ctrl,60,60);
         ctrl.setControllee(gunner);
         gunner.setGameLoop(gameLoop);
@@ -96,11 +73,5 @@ public class ServerMux<ClientKey> extends Mux<ClientKey>
         // add the new shared entity created to the set of shared entities to be
         // added to future clients that connect
         sharedEntities.add(ctrl);
-    }
-
-    @Override
-    public void onError(Object obj, Exception e)
-    {
-        throw new RuntimeException(e);
     }
 }
