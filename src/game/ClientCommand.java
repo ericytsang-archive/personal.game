@@ -4,17 +4,29 @@ import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.awt.event.MouseMotionListener;
 import java.nio.ByteBuffer;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+import framework.Serializable;
 import net.Packet;
 
-public class ClientCommand extends framework.net.Entity implements KeyListener, MouseListener
+public class ClientCommand extends framework.net.Entity implements KeyListener,MouseListener,MouseMotionListener,framework.Entity 
 {
+    private static final int SHOOT_INTERVAL = 5;
+
     private final Set<Integer> pressedKeys;
 
-    private final Set<Integer> pressedMouseButtons; 
+    private final Set<Integer> pressedMouseButtons;
+
+    private int mouseX;
+
+    private int mouseY;
+
+    private int shootTimer;
+
+    private boolean isShooting;
 
     //////////////////
     // constructors //
@@ -25,6 +37,7 @@ public class ClientCommand extends framework.net.Entity implements KeyListener, 
         super(id,PairType.SVRCMD_CLNTCMD);
         pressedKeys = new LinkedHashSet<>();
         pressedMouseButtons = new LinkedHashSet<>();
+        isShooting = false;
     }
 
     /////////////////
@@ -127,21 +140,8 @@ public class ClientCommand extends framework.net.Entity implements KeyListener, 
             pressedKeys.add(e.getButton());
         }
 
-        // create the command packet, and send it
-        ByteBuffer payload = ByteBuffer.allocate(4);
-        Packet packet = new Packet();
-
-        switch(e.getButton())
-        {
-        case MouseEvent.BUTTON1:
-            payload.putInt(Command.START_SHOOTING.ordinal());
-            break;
-        default:
-            // if there is no command, don't send anything
-            return;
-        }
-
-        update(packet.pushData(payload.array()));
+        // set the shooting flag
+        isShooting = true;
     }
 
     @Override
@@ -150,21 +150,8 @@ public class ClientCommand extends framework.net.Entity implements KeyListener, 
         // remove the button from set of pressed button
         pressedMouseButtons.add(e.getButton());
 
-        // create the command packet, and send it
-        ByteBuffer payload = ByteBuffer.allocate(4);
-        Packet packet = new Packet();
-
-        switch(e.getButton())
-        {
-        case MouseEvent.BUTTON1:
-            payload.putInt(Command.STOP_SHOOTING.ordinal());
-            break;
-        default:
-            // if there is no command, don't send anything
-            return;
-        }
-
-        update(packet.pushData(payload.array()));
+        // unset the shooting flag
+        isShooting = false;
     }
 
     @Override
@@ -183,6 +170,24 @@ public class ClientCommand extends framework.net.Entity implements KeyListener, 
     public void mouseExited(MouseEvent e)
     {
         // do nothing
+    }
+
+    /////////////////////////
+    // MouseMotionListener //
+    /////////////////////////
+
+    @Override
+    public void mouseDragged(MouseEvent e)
+    {
+        // do nothing
+    }
+
+    @Override
+    public void mouseMoved(MouseEvent e)
+    {
+        // record the mouse's x and y coordinates
+        mouseX = e.getX();
+        mouseY = e.getY();
     }
 
     //////////////////////////
@@ -205,5 +210,48 @@ public class ClientCommand extends framework.net.Entity implements KeyListener, 
     public void onUnregister(Packet packet)
     {
         // do nothing
+    }
+
+    //////////////////////
+    // framework.Entity //
+    //////////////////////
+
+    @Override
+    public Serializable fromBytes(byte[] data)
+    {
+        throw new RuntimeException("not implemented");
+    }
+
+    @Override
+    public byte[] toBytes()
+    {
+        throw new RuntimeException("not implemented");
+    }
+
+    @Override
+    public void update()
+    {
+        if(isShooting && --shootTimer < 0)
+        {
+            // reset the shoot timer
+            shootTimer = SHOOT_INTERVAL;
+
+            // create and send a create bullet command
+            // create the command packet, and send it
+            ByteBuffer payload = ByteBuffer.allocate(3*4);
+            Packet packet = new Packet();
+
+            payload.putInt(Command.MAKE_BULLET.ordinal());
+            payload.putInt(mouseX);
+            payload.putInt(mouseY);
+
+            update(packet.pushData(payload.array()));
+        }
+    }
+
+    @Override
+    public void serverUpdate()
+    {
+        throw new RuntimeException("not implemented");
     }
 }

@@ -7,6 +7,5 @@ enum Command
     MOVE_L,
     MOVE_R,
     JUMP,
-    START_SHOOTING,
-    STOP_SHOOTING
+    MAKE_BULLET
 }

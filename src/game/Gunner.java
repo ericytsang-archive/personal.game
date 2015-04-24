@@ -1,5 +1,6 @@
 package game;
 
+import java.awt.Color;
 import java.awt.Graphics;
 import java.nio.ByteBuffer;
 
@@ -12,6 +13,8 @@ public class Gunner extends GameEntity
 {
     public static final int MAX_SPEED = 7;
     public static final int JUMP_COMMAND_INTERVAL = 500;
+    public static final int DRAW_RADIUS = 20;
+    public static final int DEMI_DRAW_RADIUS = DRAW_RADIUS/2;
     private int x;
     private int y;
     private int xSpeed;
@@ -20,6 +23,7 @@ public class Gunner extends GameEntity
     private int targetYSpeed;
     private Controller ctrl;
     private int sendJumpCommandTimer;
+    private Color renderColor;
 
     public Gunner(Controller ctrl, int x, int y)
     {
@@ -31,6 +35,12 @@ public class Gunner extends GameEntity
         this.targetXSpeed = 0;
         this.targetYSpeed = 0;
         this.ctrl = ctrl;
+
+        float hue = (float) (Math.random()*256F);
+        float saturation = 0.9f;
+        float luminance = 1.0f;
+        this.renderColor = Color.getHSBColor(hue,saturation,luminance);
+
         this.sendJumpCommandTimer = JUMP_COMMAND_INTERVAL;
     }
 
@@ -42,17 +52,19 @@ public class Gunner extends GameEntity
         y = buf.getInt();
         xSpeed = buf.getInt();
         ySpeed = buf.getInt();
+        renderColor = new Color(buf.getInt());
         return this;
     }
 
     @Override
     public byte[] toBytes()
     {
-        ByteBuffer buf = ByteBuffer.allocate(16);
+        ByteBuffer buf = ByteBuffer.allocate(5*4);
         buf.putInt(x);
         buf.putInt(y);
         buf.putInt(xSpeed);
         buf.putInt(ySpeed);
+        buf.putInt(renderColor.getRGB());
         return buf.array();
     }
 
@@ -107,6 +119,11 @@ public class Gunner extends GameEntity
             xSpeed = buf.getInt();
             ySpeed = buf.getInt();
             break;
+        case MAKE_BULLET:
+            Bullet b = new Bullet(x,y,4,4,renderColor);
+            break;
+        default:
+            throw new RuntimeException("default case triggered");
         }
         }
     }
@@ -120,7 +137,7 @@ public class Gunner extends GameEntity
             sendJumpCommandTimer = JUMP_COMMAND_INTERVAL;
 
             // create the jump command packet, and send it
-            ByteBuffer payload = ByteBuffer.allocate(20);
+            ByteBuffer payload = ByteBuffer.allocate(5*4);
             Packet packet = new Packet();
 
             payload.putInt(Command.JUMP.ordinal());
@@ -137,6 +154,7 @@ public class Gunner extends GameEntity
     @Override
     public void render(Graphics g)
     {
-        g.drawArc(x-5,y-5,10,10,0,360);
+        g.setColor(renderColor);
+        g.fillArc(x-DEMI_DRAW_RADIUS,y-DEMI_DRAW_RADIUS,DRAW_RADIUS,DRAW_RADIUS,0,360);
     }
 }

@@ -37,6 +37,7 @@ public class ClientMux<ClientKey> extends Mux<ClientKey>
             ClientCommand cmd = new ClientCommand(id);
             frame.addKeyListener(cmd);
             frame.addMouseListener(cmd);
+            frame.addMouseMotionListener(cmd);
             ret = cmd;
             break;
         case SVRCTRL_NETCTRL:
