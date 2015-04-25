@@ -64,24 +64,14 @@ public abstract class Mux<ClientKey> implements HostListener<ClientKey>
         }
     }
 
-    /////////////////////////
-    // protected interface //
-    /////////////////////////
-
-    @SuppressWarnings("unchecked")
-    protected final void update(Entity entity, Packet packet)
-    {
-        sendMuxMsgToGroup((Set<ClientKey>) entity.registeredClients,entity.getId(),entity.getPairType(),MuxMsg.UPDATE,packet);
-    }
-
-    protected final void register(ClientKey client, Entity entity, Packet packet)
+    public final void register(ClientKey client, Entity entity, Packet packet)
     {
         entities.put(entity.getId(),entity);
         entity.registeredClients.add(client);
         sendMuxMsg(client,entity.getId(),entity.getPairType(),MuxMsg.REGISTER,packet);
     }
 
-    protected final void registerWithAll(Entity entity, Packet packet)
+    public final void registerWithAll(Entity entity, Packet packet)
     {
         entities.put(entity.getId(),entity);
         for(ClientKey c : clients)
@@ -91,11 +81,21 @@ public abstract class Mux<ClientKey> implements HostListener<ClientKey>
         }
     }
 
-    protected final void unregister(ClientKey client, Entity entity, Packet packet)
+    public final void unregister(ClientKey client, Entity entity, Packet packet)
     {
         entities.remove(entity.getId());
         entity.registeredClients.remove(client);
         sendMuxMsg(client,entity.getId(),entity.getPairType(),MuxMsg.UNREGISTER,packet);
+    }
+
+    /////////////////////////
+    // protected interface //
+    /////////////////////////
+
+    @SuppressWarnings("unchecked")
+    protected final void update(Entity entity, Packet packet)
+    {
+        sendMuxMsgToGroup((Set<ClientKey>) entity.registeredClients,entity.getId(),entity.getPairType(),MuxMsg.UPDATE,packet);
     }
 
     protected abstract Entity onRegister(int id, PairType pairType, Packet packet);

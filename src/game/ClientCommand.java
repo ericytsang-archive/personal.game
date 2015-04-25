@@ -108,6 +108,10 @@ public class ClientCommand extends framework.net.Entity implements KeyListener,M
         case KeyEvent.VK_D:
             payload.putInt(Command.MOVE_L.ordinal());
             break;
+        case KeyEvent.VK_SPACE:
+            System.out.println("spacePressed");
+            isShooting = !isShooting;
+            return;
         default:
             // if there is no command, don't send anything
             return;
@@ -141,7 +145,10 @@ public class ClientCommand extends framework.net.Entity implements KeyListener,M
         }
 
         // set the shooting flag
-        isShooting = true;
+        if(e.getButton() == MouseEvent.BUTTON1)
+        {
+            isShooting = true;
+        }
     }
 
     @Override
@@ -151,7 +158,10 @@ public class ClientCommand extends framework.net.Entity implements KeyListener,M
         pressedMouseButtons.add(e.getButton());
 
         // unset the shooting flag
-        isShooting = false;
+        if(e.getButton() == MouseEvent.BUTTON1)
+        {
+            isShooting = false;
+        }
     }
 
     @Override
@@ -234,6 +244,7 @@ public class ClientCommand extends framework.net.Entity implements KeyListener,M
         if(isShooting && --shootTimer < 0)
         {
             // reset the shoot timer
+            System.out.println("fire");
             shootTimer = SHOOT_INTERVAL;
 
             // create and send a create bullet command

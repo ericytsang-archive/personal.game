@@ -4,17 +4,21 @@ import java.awt.Color;
 import java.awt.Graphics;
 import java.nio.ByteBuffer;
 
+import framework.Controller;
+
 public class Bullet extends framework.GameEntity
 {
     private int x;
     private int y;
     private int xSpeed;
     private int ySpeed;
+    private Controller ctrl;
     private Color renderColor;
 
-    public Bullet(int x, int y, int xSpeed, int ySpeed, Color renderColor)
+    public Bullet(Controller ctrl, int x, int y, int xSpeed, int ySpeed, Color renderColor)
     {
         super(RenderDepths.BULLET.ordinal());
+        this.ctrl = ctrl;
         this.x = x;
         this.y = y;
         this.xSpeed = xSpeed;

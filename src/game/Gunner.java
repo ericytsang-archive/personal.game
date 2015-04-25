@@ -119,9 +119,6 @@ public class Gunner extends GameEntity
             xSpeed = buf.getInt();
             ySpeed = buf.getInt();
             break;
-        case MAKE_BULLET:
-            Bullet b = new Bullet(x,y,4,4,renderColor);
-            break;
         default:
             throw new RuntimeException("default case triggered");
         }

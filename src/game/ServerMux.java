@@ -53,7 +53,7 @@ public class ServerMux<ClientKey> extends Mux<ClientKey>
         // create the command and controller entities on the server side, and
         // link them so that commands received on the command entity get piped
         // to the controller
-        ServerCommand cmd = new ServerCommand();
+        ServerCommand cmd = new ServerCommand(gameLoop);
         ServerController ctrl = new ServerController();
         Gunner gunner = new Gunner(ctrl,60,60);
         ctrl.setControllee(gunner);

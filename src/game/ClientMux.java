@@ -1,5 +1,7 @@
 package game;
 
+import java.awt.Color;
+
 import javax.swing.JFrame;
 
 import framework.Canvas;
@@ -51,6 +53,14 @@ public class ClientMux<ClientKey> extends Mux<ClientKey>
                 packet = packet.popData();
                 gunner.setCanvas(canvas);
                 gunner.setGameLoop(gameLoop);
+            }
+            if(controlleeName.equals(Bullet.class.getSimpleName()))
+            {
+                System.out.println("Making bullet...");
+                Bullet bullet = new Bullet(ctrl,0,0,0,0,Color.BLACK).fromBytes(packet.peekData());
+                packet = packet.popData();
+                bullet.setCanvas(canvas);
+                bullet.setGameLoop(gameLoop);
             }
             ret = ctrl;
             break;
