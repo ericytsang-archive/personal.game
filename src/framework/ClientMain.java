@@ -36,7 +36,7 @@ public class ClientMain
         clnt.setObserver(
                 new HostListenerAdapter<SocketChannel,ServerSocketChannel>()
                 .setObserver(Mux.<SocketChannel>getInstance()));
-        clnt.connect("localhost",7000);
+        clnt.connect(args[0],7000);
 
         gameLoop.register(clnt);
         gameLoop.loop();

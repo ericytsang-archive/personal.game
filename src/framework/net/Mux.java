@@ -81,6 +81,16 @@ public abstract class Mux<ClientKey> implements HostListener<ClientKey>
         }
     }
 
+    public final void unregisterWithAll(Entity entity, Packet packet)
+    {
+        entities.put(entity.getId(),entity);
+        for(ClientKey c : clients)
+        {
+            entity.registeredClients.add(c);
+            sendMuxMsg(c,entity.getId(),entity.getPairType(),MuxMsg.UNREGISTER,packet);
+        }
+    }
+
     public final void unregister(ClientKey client, Entity entity, Packet packet)
     {
         entities.remove(entity.getId());

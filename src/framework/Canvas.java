@@ -3,6 +3,7 @@ package framework;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -17,9 +18,12 @@ public class Canvas extends JPanel
 
     private final Set<Drawable> drawables;
 
+    private final Set<Drawable> drawablesToRemove;
+
     public Canvas()
     {
         this.drawables = new TreeSet<Drawable>(new DrawableComparator());
+        this.drawablesToRemove = new LinkedHashSet<>();
         setBackground(Color.BLACK);
     }
 
@@ -34,7 +38,7 @@ public class Canvas extends JPanel
 
     public void unregister(Drawable drawable)
     {
-        drawables.remove(drawable);
+        drawablesToRemove.add(drawable);
     }
 
     public void paintComponent(Graphics g)
@@ -44,6 +48,13 @@ public class Canvas extends JPanel
         {
             d.render(g);
         }
+
+        for(Drawable d : drawablesToRemove)
+        {
+            drawables.remove(d);
+        }
+
+        drawablesToRemove.clear();
     }
 
     ////////////////////////

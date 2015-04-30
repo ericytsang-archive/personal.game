@@ -3,8 +3,11 @@ package game;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.nio.ByteBuffer;
+import java.nio.channels.SocketChannel;
 
+import net.Packet;
 import framework.Controller;
+import framework.net.Mux;
 import framework.net.ServerController;
 
 public class Bullet extends framework.GameEntity
@@ -36,16 +39,26 @@ public class Bullet extends framework.GameEntity
     {
         x += xSpeed;
         y += ySpeed;
+
+        Packet[] events = ctrl.getEvents();
+        if(events.length > 0)
+        {
+            unsetCanvas();
+            unsetGameLoop();
+            framework.net.Entity netEntity = (framework.net.Entity) ctrl;
+            Mux.<SocketChannel>getInstance().unregisterWithAll(netEntity,new Packet());
+            ctrl = null;
+        }
     }
 
     @Override
     public void serverUpdate()
     {
-        //if(-life < 0)
-        //{
-        //    ServerController svrCtrl = (ServerController) ctrl;
-        //    svrCtrl.update(packet);
-        //}
+        if(--life < 0)
+        {
+            ServerController svrCtrl = (ServerController) ctrl;
+            svrCtrl.update(new Packet());
+        }
     }
 
     @Override

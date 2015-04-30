@@ -15,7 +15,11 @@ public class GameLoop
 
     private final Set<InputEntity> inputProviders;
 
+    private final Set<InputEntity> inputProvidersToRemove;
+
     private final Set<Entity> entities;
+
+    private final Set<Entity> entitiesToRemove;
 
     //////////////////
     // constructors //
@@ -27,7 +31,9 @@ public class GameLoop
         this.keepLooping = true;
         this.canvas = canvas;
         this.inputProviders = new LinkedHashSet<>();
+        this.inputProvidersToRemove = new LinkedHashSet<>();
         this.entities = new LinkedHashSet<>();
+        this.entitiesToRemove = new LinkedHashSet<>();
     }
 
     public GameLoop()
@@ -75,7 +81,7 @@ public class GameLoop
 
     public void unregister(InputEntity i)
     {
-        inputProviders.remove(i);
+        inputProvidersToRemove.add(i);
     }
 
     public void register(Entity e)
@@ -85,7 +91,7 @@ public class GameLoop
 
     public void unregister(Entity e)
     {
-        entities.remove(e);
+        entitiesToRemove.add(e);
     }
 
     ///////////////////////
@@ -98,6 +104,13 @@ public class GameLoop
         {
             i.processInputs();
         }
+
+        for(InputEntity i : inputProvidersToRemove)
+        {
+            inputProviders.remove(i);
+        }
+
+        inputProvidersToRemove.clear();
     }
 
     private final void update()
@@ -106,6 +119,13 @@ public class GameLoop
         {
             e.update();
         }
+
+        for(Entity e : entitiesToRemove)
+        {
+            entities.remove(e);
+        }
+
+        entitiesToRemove.clear();
     }
 
     private final void render()
