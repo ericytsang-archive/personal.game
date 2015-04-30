@@ -5,13 +5,14 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 import net.Packet;
 import framework.Controller;
+import framework.GameEntity;
 import game.PairType;
 
 public class ServerController extends framework.net.Entity implements Controller
 {
     private Queue<Packet> events;
 
-    private framework.Entity controllee;
+    private GameEntity controllee;
 
     public ServerController()
     {
@@ -19,9 +20,14 @@ public class ServerController extends framework.net.Entity implements Controller
         this.events = new LinkedBlockingQueue<>();
     }
 
-    public void setControllee(framework.Entity controllee)
+    public void setControllee(GameEntity controllee)
     {
         this.controllee = controllee;
+    }
+
+    public framework.Entity getControllee()
+    {
+        return controllee;
     }
 
     public void addEvent(Packet packet)
@@ -57,7 +63,7 @@ public class ServerController extends framework.net.Entity implements Controller
     @Override
     public void onUnregister(Packet packet)
     {
-        // TODO Auto-generated method stub
-        
+        controllee.unsetCanvas();
+        controllee.unsetGameLoop();
     }
 }

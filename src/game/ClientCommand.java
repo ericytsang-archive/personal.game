@@ -18,8 +18,6 @@ public class ClientCommand extends framework.net.Entity implements KeyListener,M
 
     private final Set<Integer> pressedKeys;
 
-    private final Set<Integer> pressedMouseButtons;
-
     private int mouseX;
 
     private int mouseY;
@@ -36,7 +34,6 @@ public class ClientCommand extends framework.net.Entity implements KeyListener,M
     {
         super(id,PairType.SVRCMD_CLNTCMD);
         pressedKeys = new LinkedHashSet<>();
-        pressedMouseButtons = new LinkedHashSet<>();
         isShooting = false;
     }
 
@@ -108,10 +105,6 @@ public class ClientCommand extends framework.net.Entity implements KeyListener,M
         case KeyEvent.VK_D:
             payload.putInt(Command.MOVE_L.ordinal());
             break;
-        case KeyEvent.VK_SPACE:
-            System.out.println("spacePressed");
-            isShooting = !isShooting;
-            return;
         default:
             // if there is no command, don't send anything
             return;
@@ -133,17 +126,6 @@ public class ClientCommand extends framework.net.Entity implements KeyListener,M
     @Override
     public void mousePressed(MouseEvent e)
     {
-        // check if the button is already pressed. if it isn't continue, short
-        // circuit otherwise
-        if(pressedKeys.contains(e.getButton()))
-        {
-            return;
-        }
-        else
-        {
-            pressedKeys.add(e.getButton());
-        }
-
         // set the shooting flag
         if(e.getButton() == MouseEvent.BUTTON1)
         {
@@ -154,9 +136,6 @@ public class ClientCommand extends framework.net.Entity implements KeyListener,M
     @Override
     public void mouseReleased(MouseEvent e)
     {
-        // remove the button from set of pressed button
-        pressedMouseButtons.add(e.getButton());
-
         // unset the shooting flag
         if(e.getButton() == MouseEvent.BUTTON1)
         {
@@ -189,7 +168,9 @@ public class ClientCommand extends framework.net.Entity implements KeyListener,M
     @Override
     public void mouseDragged(MouseEvent e)
     {
-        // do nothing
+        // record the mouse's x and y coordinates
+        mouseX = e.getX();
+        mouseY = e.getY();
     }
 
     @Override
@@ -244,7 +225,6 @@ public class ClientCommand extends framework.net.Entity implements KeyListener,M
         if(isShooting && --shootTimer < 0)
         {
             // reset the shoot timer
-            System.out.println("fire");
             shootTimer = SHOOT_INTERVAL;
 
             // create and send a create bullet command

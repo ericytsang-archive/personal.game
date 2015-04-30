@@ -40,6 +40,7 @@ public class ClientMux<ClientKey> extends Mux<ClientKey>
             frame.addKeyListener(cmd);
             frame.addMouseListener(cmd);
             frame.addMouseMotionListener(cmd);
+            gameLoop.register(cmd);
             ret = cmd;
             break;
         case SVRCTRL_NETCTRL:
@@ -48,7 +49,6 @@ public class ClientMux<ClientKey> extends Mux<ClientKey>
             packet = packet.popData();
             if(controlleeName.equals(Gunner.class.getSimpleName()))
             {
-                System.out.println("Making gunner...");
                 Gunner gunner = new Gunner(ctrl,0,0).fromBytes(packet.peekData());
                 packet = packet.popData();
                 gunner.setCanvas(canvas);
@@ -56,8 +56,7 @@ public class ClientMux<ClientKey> extends Mux<ClientKey>
             }
             if(controlleeName.equals(Bullet.class.getSimpleName()))
             {
-                System.out.println("Making bullet...");
-                Bullet bullet = new Bullet(ctrl,0,0,0,0,Color.BLACK).fromBytes(packet.peekData());
+                Bullet bullet = new Bullet(ctrl,0,0,0,Color.BLACK).fromBytes(packet.peekData());
                 packet = packet.popData();
                 bullet.setCanvas(canvas);
                 bullet.setGameLoop(gameLoop);

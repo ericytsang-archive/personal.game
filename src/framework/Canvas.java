@@ -1,5 +1,6 @@
 package framework;
 
+import java.awt.Color;
 import java.awt.Graphics;
 import java.util.Comparator;
 import java.util.Set;
@@ -19,6 +20,7 @@ public class Canvas extends JPanel
     public Canvas()
     {
         this.drawables = new TreeSet<Drawable>(new DrawableComparator());
+        setBackground(Color.BLACK);
     }
 
     //////////////////////

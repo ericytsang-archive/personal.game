@@ -1,6 +1,5 @@
 package game;
 
-import java.awt.Color;
 import java.nio.ByteBuffer;
 
 import framework.GameLoop;
@@ -50,8 +49,17 @@ public class ServerCommand extends framework.net.Entity
         switch(Command.values()[buf.getInt()])
         {
         case MAKE_BULLET:
+            Gunner gunner = (Gunner) svrCtrl.getControllee();
+
+            // parse packet information
+            int targetX = buf.getInt();
+            int targetY = buf.getInt();
+            float angle = getAngle(gunner.getX(),gunner.getY(),targetX,targetY);
+
+            // create the bullet, and the controller for the bullet
             ServerController ctrl = new ServerController();
-            Bullet bullet = new Bullet(ctrl,0,0,5,5,Color.RED);
+            Bullet bullet = new Bullet(ctrl,gunner.getX(),gunner.getY(),angle,gunner.getRenderColor());
+
             ctrl.setControllee(bullet);
             bullet.setGameLoop(gameLoop);
             Mux.getInstance().registerWithAll(ctrl,ctrl.getRegisterPacket());
@@ -75,5 +83,10 @@ public class ServerCommand extends framework.net.Entity
     public void onUnregister(Packet packet)
     {
         // do nothing
+    }
+
+    private float getAngle(int x1, int y1, int x2, int y2)
+    {
+        return (float) Math.atan2(y2-y1,x2-x1);
     }
 }

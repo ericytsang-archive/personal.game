@@ -44,6 +44,21 @@ public class Gunner extends GameEntity
         this.sendJumpCommandTimer = JUMP_COMMAND_INTERVAL;
     }
 
+    public int getX()
+    {
+        return x;
+    }
+
+    public int getY()
+    {
+        return y;
+    }
+
+    public Color getRenderColor()
+    {
+        return renderColor;
+    }
+
     @Override
     public Gunner fromBytes(byte[] data)
     {
